@@ -41,7 +41,7 @@ def settingsWindow(config: SerialConfig):
                       
                   ]),
             sg.Frame('Trasmissione',
-                     [[sg.Text('Fine'), sg.Combo(['Niente', 'CR', 'LF', 'CR+LF'], default_value=config.flowctrl, key=Id.END)]]),
+                     [[sg.Text('Fine'), sg.Combo(['Niente', 'CR', 'LF', 'CR+LF'], default_value=config.end, key=Id.END)]]),
          ],
         [sg.Button('Ok', key=Id.OK)]]
     window = sg.Window('Impostazioni', layout, finalize=True)
