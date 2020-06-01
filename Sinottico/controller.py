@@ -5,7 +5,9 @@ import queue
 import threading
 from enum import Enum
 from abc import ABC, abstractmethod
+import time
 from typing import List
+from parse import parse
 
 from .serialutils import *
 from .view.main import mainWindow
@@ -13,7 +15,27 @@ from .resources import resourcePath
 from .model import *
 
 
+def elapsed(start, delay):
+    return time.time() - start > delay
+
+def clearq(q: queue.Queue):
+    while not q.empty():
+        try:
+            q.get_nowait()
+        except queue.Empty:
+            pass
+
 class Command(ABC):
+    def __init__(self, hidden=False):
+        self.start()
+        self.hidden = hidden
+
+    def start(self):
+        self.started = time.time()
+
+    def timeout(self):
+        return elapsed(self.started, 10)
+
     @abstractmethod
     def commandString(self) -> str:
         pass
@@ -27,12 +49,13 @@ class Command(ABC):
         pass
 
     @abstractmethod
-    def response(self) -> str:
+    def result(self) -> GuiMessage:
         pass
 
 
 class CmdGetSerialNumber(Command):
     def __init__(self):
+        super().__init__()
         self._error = False
         self.serialNumber = '0000000'
 
@@ -50,14 +73,14 @@ class CmdGetSerialNumber(Command):
             self._error = True
         return True
 
-    def response(self):
-        return self.serialNumber
+    def result(self):
+        return GuiMessage.SERIAL(self.serialNumber)
 
 
 class CmdGetPower(Command):
     def __init__(self):
+        super().__init__(hidden=True)
         self._error = False
-        self.data = ""
 
     def error(self):
         return self._error
@@ -66,17 +89,16 @@ class CmdGetPower(Command):
         return "Read_PAR"
 
     def parseResponse(self, response: str) -> bool:
-
+        self.direct, self.reflected, self.temp = parse("PAR,{},Wf,{},Wr,{},C\r\n", response)
         return True
 
-    def response(self):
-        return self.data
-
-
+    def result(self):
+        return GuiMessage.POWER(self.direct, self.reflected, self.temp)
 
 
 class CmdGetRevision(Command):
     def __init__(self):
+        super().__init__()
         self._error = False
         self.revision = ''
 
@@ -93,11 +115,13 @@ class CmdGetRevision(Command):
             self._error = True
         return True
 
-    def response(self):
-        return self.revision
+    def result(self):
+        return GuiMessage.REVISION(self.revision)
+
 
 class CmdSetMode(Command):
     def __init__(self, mode):
+        super().__init__()
         self.mode = mode
         self._error = False
 
@@ -111,57 +135,35 @@ class CmdSetMode(Command):
         self._error = not 'Ok' in response
         return True
 
-    def response(self):
-        return ""
+    def result(self):
+        return None
 
+class CmdAny(Command):
+    def __init__(self, cmd):
+        super().__init__()
+        self.cmd = cmd
 
+    def error(self):
+        return False
 
+    def commandString(self) -> str:
+        return self.cmd
 
-class CommandSequence:
-    def __init__(self):
-        self.index = 0
-        self.seq = []
-        self.sent = False
-        self.packer = lambda x: x
-
-    def newSequence(self, sequence, packer=lambda _ : None):
-        self.__init__()
-        self.seq = sequence
-        self.packer = packer
-
-    def done(self) -> bool:
-        return self.index == len(self.seq)
-
-    def next(self):
-        if self.done():
-            return None
-        elif not self.sent:
-            self.sent = True
-            return self.seq[self.index]
-        else:
-            return None
-
-    def parse(self, response: str):
-        if self.done():
-            return True
-
-        if self.seq[self.index].parseResponse(response):
-            self.index += 1
-            self.sent = False
-            return True
-
-    def error(self) -> bool:
-        return all([x.error() for x in self.seq]) and len(self.seq) > 0
+    def parseResponse(self, response: str) -> bool:
+        return True
 
     def result(self):
-        return self.packer([x.response() for x in self.seq])
+        return None
+
 
 
 def controllerTask(guiq: queue.Queue, workq: queue.Queue):
     port: serial.Serial = None
-    #cmdq : queue.Queue = queue.Queue()
-    commandSequence: CommandSequence = CommandSequence()
+    cmdq: queue.Queue = queue.Queue()
     config: SerialConfig = SerialConfig()
+    currentCmd = None
+    timestamp = time.time()
+    error : bool = False
 
     while True:
         try:
@@ -169,6 +171,8 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
 
             def newPort(c: SerialConfig):
                 nonlocal port
+                nonlocal cmdq
+                clearq(cmdq)
                 if c.port:
                     config = c
                     if port:
@@ -185,21 +189,17 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                     port = None
 
             def send(data: str):
-                nonlocal port
-                if port:
-                    port.write(data.encode('ASCII'))
+                nonlocal cmdq
+                cmdq.put(CmdAny(data))
 
             def getInfo():
-                nonlocal commandSequence
-                if commandSequence.done():
-                    commandSequence.newSequence(
-                        [CmdGetSerialNumber(), CmdGetRevision()], lambda l: GuiMessage.INFO(l[0], l[1]))
+                nonlocal cmdq
+                cmdq.put(CmdGetSerialNumber())
+                cmdq.put(CmdGetRevision())
 
             def setMode(mode):
-                nonlocal commandSequence
-                if commandSequence.done():
-                    commandSequence.newSequence([CmdSetMode(mode)])
-
+                nonlocal cmdq
+                cmdq.put(CmdSetMode(mode))
 
             msg.match(
                 newport=newPort,
@@ -213,24 +213,38 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
         if port:
             read = port.read(port.in_waiting)
 
-            if read:
+            if read and not currentCmd.hidden:
                 guiq.put(GuiMessage.RECV(read.decode(errors='ignore')))
 
-            if commandSequence:
-                cmd: Command = commandSequence.next()
-                if cmd:
-                    tosend = cmd.commandString() + config.endStr()
-                    guiq.put(GuiMessage.SEND(tosend))
+            if currentCmd:
+                if not currentCmd.sent:
+                    tosend = currentCmd.commandString() + config.endStr()
                     port.write(tosend.encode())
+                    currentCmd.sent = True
 
-                if commandSequence.error():
-                    commandSequence.newSequence([])
+                    if not currentCmd.hidden:
+                        guiq.put(GuiMessage.SEND(tosend))
+
+                if currentCmd.error() or currentCmd.timeout():
                     guiq.put(GuiMessage.ERROR())
+                    clearq(cmdq)
+                    error= True
+                    currentCmd = None
 
                 if read:
-                    commandSequence.parse(read.decode(errors='ignore'))
+                    if currentCmd.parseResponse(read.decode(errors='ignore')):
+                        if result := currentCmd.result():
+                            guiq.put(result)
 
-                    if commandSequence.done():
-                        res = commandSequence.result()
-                        if res:
-                            guiq.put(res)
+                        error = False
+                        currentCmd = None
+            else:
+                try:
+                    currentCmd = cmdq.get_nowait()
+                    currentCmd.sent = False
+                except queue.Empty:
+                    currentCmd = None
+
+            if elapsed(timestamp, 1) and not error:
+                cmdq.put(CmdGetPower())
+                timestamp = time.time()

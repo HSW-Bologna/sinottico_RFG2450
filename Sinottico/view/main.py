@@ -22,6 +22,9 @@ class Id(Enum):
     REVISION = 5
     MODES = 6
     STATUS = 7
+    DIRPWR = 8
+    REFPWR = 9
+    TEMP = 15
 
 
 def explicit(s):
@@ -32,26 +35,79 @@ def mainWindow(workq: Queue, guiq: Queue):
     connected: bool = False
 
     tab1 = [
-        [sg.Multiline(size=(64, 20), key=Id.LOG, disabled=True)],
-        [sg.Input(size=(60, None), key=Id.INPUT), sg.Button(
-            image_filename=resourcePath('send.png'), bind_return_key=True, key=Id.SEND)]
+        [
+            sg.Frame("Informazioni",
+                     [[sg.Text("Numero di serie: "),
+                       sg.Input(key=Id.SN)],
+                      [sg.Text("", key=Id.REVISION, size=(40, None))],
+                      [sg.Button("Richiedi", key=Id.INFO)]])
+        ],
+        [
+            sg.Frame("Modalita'", [[
+                sg.Combo(values=list(MODES.keys()),
+                         key=Id.MODES,
+                         metadata=lambda x: MODES[x],
+                         enable_events=True)
+            ]])
+        ],
+        [
+            sg.Frame("Parametri", [
+                [
+                    sg.Text(
+                        "Potenza Diretta (W)", size=(20, 1), pad=(0, (10, 0))),
+                    sg.Slider(range=(0, 300),
+                              size=(20, 20),
+                              orientation='horizontal',
+                              key=Id.DIRPWR)
+                ],
+                [
+                    sg.Text(
+                        "Potenza Riflessa (W)", size=(20, 1), pad=(0,
+                                                                   (10, 0))),
+                    sg.Slider(range=(0, 300),
+                              size=(20, 20),
+                              orientation='horizontal',
+                              key=Id.DIRPWR)
+                ],
+                [sg.Text("SWR: ", pad=(0, (20, 0)))],
+                [sg.Text("Temperatura: ", key=Id.TEMP)],
+            ])
+        ],
     ]
 
-    tab2 = [
-        [sg.Frame("Informazioni", [[sg.Text("Numero di serie: "), sg.Input(key=Id.SN)],
-                                   [sg.Text("", key=Id.REVISION,
-                                            size=(40, None))],
-                                   [sg.Button("Richiedi", key=Id.INFO)]])],
-        [sg.Frame("Modalita'", [[
-            sg.Combo(values=list(MODES.keys()),
-                     key=Id.MODES, metadata=lambda x: MODES[x], enable_events=True)
-        ]])]
+    tab2 = [[]]
+
+    tab3 = [[]]
+
+    tab4 = [
+        [sg.Text("Ore di lavoro:")],
     ]
 
-    layout = [[sg.Button('Impostazioni', key=Id.SETTINGS,), sg.Button('Connetti', key=Id.CONNECT)],
-              [sg.TabGroup([[sg.Tab("Dati", tab2), sg.Tab("Terminale", tab1)]])],
-              [sg.Text("Selezionare una porta e connetersi", key=Id.STATUS)]
-              ]
+    tab5 = [[sg.Multiline(size=(64, 20), key=Id.LOG, disabled=True)],
+            [
+                sg.Input(size=(60, None), key=Id.INPUT),
+                sg.Button(image_filename=resourcePath('send.png'),
+                          bind_return_key=True,
+                          key=Id.SEND)
+            ]]
+
+    layout = [[
+        sg.Button(
+            'Impostazioni',
+            key=Id.SETTINGS,
+        ),
+        sg.Button('Connetti', key=Id.CONNECT)
+    ],
+              [
+                  sg.TabGroup([[
+                      sg.Tab("Informazioni", tab1),
+                      sg.Tab("Acquisizione Dati", tab2),
+                      sg.Tab("Calibrazione", tab3),
+                      sg.Tab("Verbale", tab4),
+                      sg.Tab("Terminale", tab5)
+                  ]])
+              ],
+              [sg.Text("Selezionare una porta e connetersi", key=Id.STATUS)]]
 
     # Create the Window
     window = sg.Window('Window Title', layout, finalize=True)
@@ -63,30 +119,34 @@ def mainWindow(workq: Queue, guiq: Queue):
     # Event Loop to process "events" and get the "values" of the inputs
     while True:
         window[Id.CONNECT].Update(disabled=(config.port == None))
-        [window[x].Update(disabled=not connected) for x in [Id.SEND, Id.INFO, Id.MODES]]
+        [
+            window[x].Update(disabled=not connected)
+            for x in [Id.SEND, Id.INFO, Id.MODES]
+        ]
 
         event, values = window.read(timeout=0.1)
-        if event in (None, 'Cancel'):   # if user closes window or clicks cancel
+        if event in (None, 'Cancel'):  # if user closes window or clicks cancel
             break
 
         if event == Id.SETTINGS:
             config = settingsWindow(config)
             if config.port:
-                text = "{} {},{}{}{}".format(
-                    config.port, config.baud, config.data, config.parity[0], config.stop)
+                text = "{} {},{}{}{}".format(config.port, config.baud,
+                                             config.data, config.parity[0],
+                                             config.stop)
             else:
                 text = "Impostazioni"
             window[Id.SETTINGS].Update(text=text)
 
-            while window.read(timeout=0, timeout_key=Id.TIMEOUT)[0] != Id.TIMEOUT:
+            while window.read(timeout=0,
+                              timeout_key=Id.TIMEOUT)[0] != Id.TIMEOUT:
                 pass
         elif event == Id.CONNECT:
             workq.put(WorkMessage.NEWPORT(config))
             window[Id.STATUS].Update("Connesso!")
             connected = True
         elif event == Id.SEND and connected:
-            guiq.put(GuiMessage.SEND(values[Id.INPUT] + explicit(config.endStr())))
-            workq.put(WorkMessage.SEND(values[Id.INPUT] + config.endStr()))
+            workq.put(WorkMessage.SEND(values[Id.INPUT]))
         elif event == Id.INFO:
             workq.put(WorkMessage.GETINFO())
         elif event == Id.MODES:
@@ -101,13 +161,16 @@ def mainWindow(workq: Queue, guiq: Queue):
             msg: GuiMessage = guiq.get(timeout=0.1)
 
             msg.match(
-                send=lambda s: window[Id.LOG].update(explicit(s), text_color_for_value="blue", append=True),
-                recv=lambda s: window[Id.LOG].update(explicit(s), text_color_for_value="black", append=True),
-                info=lambda x, y: (window[Id.SN].Update(
-                    x), window[Id.REVISION].Update(y.replace('\n', '\t'))),
+                send=lambda s: window[Id.LOG].update(
+                    explicit(s), text_color_for_value="blue", append=True),
+                recv=lambda s: window[Id.LOG].update(
+                    explicit(s), text_color_for_value="black", append=True),
+                serial=lambda x: window[Id.SN].Update(x),
+                revision=lambda y: window[Id.REVISION].Update(
+                    y.replace('\n', '\t')),
+                power=lambda x, y, z: print(x, y, z),
                 error=lambda: window[Id.STATUS].Update(
-                    "Errore di comunicazione!")
-            )
+                    "Errore di comunicazione!"))
         except queue.Empty:
             pass
 

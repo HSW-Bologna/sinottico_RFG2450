@@ -32,5 +32,7 @@ class WorkMessage:
 class GuiMessage:
     SEND: Case[str]
     RECV: Case[str]
-    INFO: Case[str, str]
+    SERIAL: Case[str]
+    REVISION: Case[str]
+    POWER: Case[int, int, int]
     ERROR: Case
