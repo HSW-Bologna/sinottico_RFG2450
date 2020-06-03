@@ -17,6 +17,15 @@ def settingsWindow(config: SerialConfig):
     BAUDRATES = [4800, 9600, 19200, 38400, 57600, 115200, 230400]
 
     csize = (16, 1)
+    ports = serialPorts()
+
+    if config.port != None and config.port in ports:
+        defport = config.port
+    elif ports:
+        defport = ports[0]
+    else:
+        defport = None
+
 
     layout = [
         [sg.Frame('Configurazione',
@@ -28,7 +37,7 @@ def settingsWindow(config: SerialConfig):
                                   [sg.Text('Parity')],
                                   [sg.Text('Flow control')]]),
 
-                       sg.Column([[sg.Combo(serialPorts(), key=Id.SERIALS, default_value=config.port, size=csize)],
+                       sg.Column([[sg.Combo(ports, key=Id.SERIALS, default_value=defport, size=csize)],
                                   [sg.Combo(BAUDRATES, key=Id.BRATES,
                                             default_value=config.baud, size=csize)],
                                   [sg.Combo([8, 9], key=Id.DBITS,
@@ -52,7 +61,6 @@ def settingsWindow(config: SerialConfig):
             return config
 
         if event == Id.OK:
-            print(event, values)
             window.close()
             return SerialConfig(port=values[Id.SERIALS], baud=values[Id.BRATES],
                                 data=values[Id.DBITS], stop=values[Id.SBITS],

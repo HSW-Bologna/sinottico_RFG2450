@@ -10,3 +10,9 @@ Le dipendenze sono elencate nel file `requirements.txt`. Le piu' notabili sono `
 # Installazione
 
 Una volta scaricata la repository, il programma puo' essere eseguito lanciando lo script `main.py`. Per pacchettizzare un eseguibile compatibile con la piattaforma che si sta correntemente usando, invocare il comando `pyinstaller sinottico.spec`.
+
+# TODO
+
+ - Connettere la seriale per la prima volta e non richiederlo piu'
+ - Disabilitare le Tab quando la seriale non e' connessa
+ - Non inviare messaggi periodici/automatici

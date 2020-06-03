@@ -3,7 +3,7 @@ import threading
 import PySimpleGUI as sg  # type: ignore
 
 from .view.main import mainWindow
-from .controller import controllerTask
+from .controller.controller import controllerTask
 
 def main():
     workq: queue.Queue = Queue()
