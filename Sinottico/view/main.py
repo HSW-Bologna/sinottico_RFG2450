@@ -1,6 +1,6 @@
 from queue import Queue
 import queue
-from enum import Enum
+from enum import Enum, auto
 import PySimpleGUI as sg  # type: ignore
 from .settings import settingsWindow
 from ..resources import resourcePath
@@ -10,30 +10,35 @@ MODES = {"Modalita' {}".format(v): v for v in range(4)}
 
 
 class Id(Enum):
-    CONNECT = 1
-    SETTINGS = 3
-    TIMEOUT = 10
-    SEND = 11
-    END = 12
-    INPUT = 13
-    LOG = 14
-    SN = 2
-    INFO = 4
-    REVISION = 5
-    MODES = 6
-    STATUS = 7
-    DIRPWR = 8
-    REFPWR = 9
-    TEMP = 15
-    ATTLBL = 16
-    POWLBL = 17
-    ATT = 18
-    POW = 19
-    DIGATT = 20
-    DIGPOW = 21
-    MAINTAB = 22
-    LOGLOG = 24
-    LOGHOURS = 25
+    CONNECT = auto()
+    SETTINGS = auto()
+    TIMEOUT = auto()
+    SEND = auto()
+    END = auto()
+    INPUT = auto()
+    LOG = auto()
+    SN = auto()
+    INFO = auto()
+    REVISION = auto()
+    MODES = auto()
+    STATUS = auto()
+    DIRPWR = auto()
+    REFPWR = auto()
+    TEMP = auto()
+    ATTLBL = auto()
+    POWLBL = auto()
+    ATT = auto()
+    POW = auto()
+    DIGATT = auto()
+    DIGPOW = auto()
+    MAINTAB = auto()
+    LOGLOG = auto()
+    LOGHOURS = auto()
+    TAB1 = auto()
+    TAB2 = auto()
+    TAB3 = auto()
+    TAB4 = auto()
+    TAB5 = auto()
 
 
 def explicit(s):
@@ -102,7 +107,7 @@ def mainWindow(workq: Queue, guiq: Queue):
     tab3: List[List[sg.Element]] = [[]]
 
     tab4 = [
-        [sg.Text("Ore di lavoro:", size=(40,1), key=Id.LOGHOURS)],
+        [sg.Text("Ore di lavoro:", size=(40, 1), key=Id.LOGHOURS)],
         [sg.Multiline(size=(64, 20), disabled=True, key=Id.LOGLOG)],
     ]
 
@@ -125,11 +130,11 @@ def mainWindow(workq: Queue, guiq: Queue):
     ],
               [
                   sg.TabGroup([[
-                      sg.Tab("Informazioni", tab1),
-                      sg.Tab("Acquisizione Dati", tab2),
-                      sg.Tab("Calibrazione", tab3),
-                      sg.Tab("Verbale", tab4),
-                      sg.Tab("Terminale", tab5)
+                      sg.Tab("Informazioni", tab1, key=Id.TAB1),
+                      sg.Tab("Acquisizione Dati", tab2, key=Id.TAB2),
+                      sg.Tab("Calibrazione", tab3, key=Id.TAB3),
+                      sg.Tab("Verbale", tab4, key=Id.TAB4),
+                      sg.Tab("Terminale", tab5, key=Id.TAB5)
                   ]],
                               key=Id.MAINTAB,
                               enable_events=True)
@@ -145,8 +150,8 @@ def mainWindow(workq: Queue, guiq: Queue):
     while True:
         window[Id.CONNECT].Update(disabled=not config.port)
         [
-            window[x].Update(disabled=not connected)
-            for x in [Id.SEND, Id.INFO]  #, Id.MODES]
+            window[x].Update(disabled=not connected) for x in
+            [Id.SEND, Id.INFO, Id.TAB1, Id.TAB2, Id.TAB3, Id.TAB4, Id.TAB5]
         ]
 
         event, values = window.read(timeout=0.1, timeout_key=Id.TIMEOUT)
@@ -168,9 +173,7 @@ def mainWindow(workq: Queue, guiq: Queue):
                 pass
         elif event == Id.CONNECT:
             workq.put(WorkMessage.NEWPORT(config))
-            window[Id.STATUS].Update("Connesso!")
-            connected = True
-        elif event == Id.SEND and connected:
+        elif event == Id.SEND:
             workq.put(WorkMessage.SEND(values[Id.INPUT]))
         elif event == Id.INFO:
             workq.put(WorkMessage.GETINFO())
@@ -190,15 +193,28 @@ def mainWindow(workq: Queue, guiq: Queue):
         elif event == Id.MAINTAB:
             value = values[event]
 
-            if value == "Verbale":
+            if value == Id.TAB1:
+                workq.put(WorkMessage.SELECTEDTAB(1))
+            elif value == Id.TAB4:
                 workq.put(WorkMessage.LOG())
+                workq.put(WorkMessage.SELECTEDTAB(4))
+            elif value != None:
+                workq.put(WorkMessage.SELECTEDTAB(0))
         else:
             print(event)
 
         try:
             msg: GuiMessage = guiq.get(timeout=0.1)
 
+            def connected():
+                nonlocal connected
+                connected = True
+                window[Id.STATUS].Update("Connesso!")
+                window[Id.TAB1].Update(disabled=False)
+                window[Id.TAB1].Select()
+
             msg.match(
+                connected=connected,
                 send=lambda s: window[Id.LOG].update(
                     explicit(s), text_color_for_value="blue", append=True),
                 recv=lambda s: window[Id.LOG].update(
@@ -216,10 +232,9 @@ def mainWindow(workq: Queue, guiq: Queue):
                                                             format(x)),
                 output=lambda x: window[Id.POW].Update("Potenza: {} W".format(
                     x)),
-                log=lambda x, y, z:
-                (window[Id.SN].Update(x), window[Id.LOGHOURS].Update(
-                    "Ore di lavoro: {}".format(y), window[Id.LOGLOG].update(
-                        z))))
+                log=lambda x, y, z: (window[Id.SN].Update(x), window[
+                    Id.LOGHOURS].Update("Ore di lavoro: {}".format(y), window[
+                        Id.LOGLOG].update(z))))
 
         except queue.Empty:
             pass

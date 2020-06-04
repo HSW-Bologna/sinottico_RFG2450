@@ -40,6 +40,7 @@ class WorkMessage:
     ATT: Case[float]
     OUTPUT: Case[int]
     LOG: Case
+    SELECTEDTAB: Case[int]
 
 
 @adt
@@ -50,6 +51,7 @@ class GuiMessage:
     REVISION: Case[str]
     POWER: Case[int, int, int]
     ERROR: Case
+    CONNECTED: Case
     ATTENUATION: Case[float]
     OUTPUT: Case[int]
     LOG: Case[str, int, str]

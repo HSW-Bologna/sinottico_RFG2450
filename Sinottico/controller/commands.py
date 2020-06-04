@@ -6,7 +6,7 @@ from ..model import *
 
 
 class Command(ABC):
-    def __init__(self, hidden=False):
+    def __init__(self, hidden=True):
         self.start()
         self.hidden = hidden
         self._error = False
@@ -90,8 +90,10 @@ class CmdGetLog(Command):
 
 class CmdGetPower(Command):
     def __init__(self):
-        super().__init__(hidden=True)
-        self._error = False
+        super().__init__()
+        self.direct = 0
+        self.reflected = 0
+        self.temp = 0
 
     def commandString(self) -> str:
         return "Read_PAR"
@@ -126,9 +128,8 @@ class CmdGetRevision(Command):
 
 
 class CmdGetAttenuation(Command):
-    def __init__(self, hidden=True):
-        super().__init__(hidden)
-        self._error = False
+    def __init__(self):
+        super().__init__()
         self.att = 0
 
     def commandString(self) -> str:
@@ -148,8 +149,8 @@ class CmdGetAttenuation(Command):
 
 
 class CmdSetAttenuation(CmdSet):
-    def __init__(self, attenuation, hidden=True):
-        super().__init__(hidden)
+    def __init__(self, attenuation):
+        super().__init__()
         self.att = attenuation
 
     def commandString(self) -> str:
@@ -157,8 +158,8 @@ class CmdSetAttenuation(CmdSet):
 
 
 class CmdSetOutput(CmdSet):
-    def __init__(self, output, hidden=True):
-        super().__init__(hidden)
+    def __init__(self, output):
+        super().__init__()
         self.out = output
 
     def commandString(self) -> str:
@@ -166,8 +167,8 @@ class CmdSetOutput(CmdSet):
 
 
 class CmdGetOutput(Command):
-    def __init__(self, hidden=True):
-        super().__init__(hidden)
+    def __init__(self):
+        super().__init__()
         self._error = False
         self.pow = 0
 
@@ -198,8 +199,8 @@ class CmdSetMode(CmdSet):
 
 
 class CmdAny(Command):
-    def __init__(self, cmd):
-        super().__init__()
+    def __init__(self, cmd, hidden=False):
+        super().__init__(hidden)
         self.cmd = cmd
 
     def commandString(self) -> str:

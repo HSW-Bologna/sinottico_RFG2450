@@ -4,9 +4,12 @@ future==0.18.2
 iso8601==0.1.12
 mypy==0.770
 mypy-extensions==0.4.3
+parse==1.15.0
 PyInstaller==3.6
 pyserial==3.4
+PySide2==5.15.0
 PySimpleGUI==4.19.0
 PyYAML==5.3.1
+shiboken2==5.15.0
 typed-ast==1.4.1
 typing-extensions==3.7.4.2
