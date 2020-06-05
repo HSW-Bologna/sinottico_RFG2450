@@ -31,7 +31,9 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
     currentCmd = None
     error : bool = False
     timestamp = time.time()
+
     selectedTab : int = 0
+    mode : int = 0
 
     while True:
         try:
@@ -55,7 +57,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                             port=c.port, baudrate=c.baud, bytesize=bytesize, parity=parity, stopbits=stop, timeout=0.1)
                         guiq.put(GuiMessage.CONNECTED())
                     except:
-                        guiq.put(GuiMessage.ERROR())
+                        guiq.put(GuiMessage.DISCONNECTED())
 
                 else:
                     port = None
@@ -69,11 +71,16 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 nonlocal selectedTab
                 selectedTab = x
 
+            def setMode(x):
+                nonlocal mode, cmdq
+                mode = x
+                cmdq.put(CmdSetMode(x))
+
             msg.match(
                 newport=newPort,
                 send=lambda x: cmdq.put(CmdAny(x)),
                 getinfo=getInfo,
-                mode=lambda x : cmdq.put(CmdSetMode(x)),
+                mode=setMode,
                 att=lambda x : cmdq.put(CmdSetAttenuation(x)),
                 output=lambda x : cmdq.put(CmdSetOutput(x)),
                 log=lambda : cmdq.put(CmdGetLog()),
@@ -83,8 +90,12 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
             pass
 
         if port:
-            read = port.read(port.in_waiting)
-
+            try:
+                read = port.read(port.in_waiting)
+            except OSError:
+                guiq.put(GuiMessage.DISCONNECTED())
+                port.close()
+                port = None
 
             if currentCmd:
                 if read and not currentCmd.hidden:
@@ -118,6 +129,13 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 except queue.Empty:
                     currentCmd = None
 
-            if selectedTab == 1 and elapsed(timestamp, 4) and not error:
-                cmdq.put(CmdGetPower())
+            if elapsed(timestamp, 4) and not error:
+                if selectedTab == 1:
+                    cmdq.put(CmdGetPower())
+
+                if mode == 1:
+                    cmdq.put(CmdGetAttenuation())
+                elif mode == 3:
+                    cmdq.put(CmdGetOutput())                
+                
                 timestamp = time.time()

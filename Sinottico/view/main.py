@@ -87,8 +87,7 @@ def mainWindow(workq: Queue, guiq: Queue):
                     [[sg.Text("Potenza: ", key=Id.POW, size=(32, 1))]]),
             ]],
                         key=Id.MODES,
-                        enable_events=True,
-                        metadata=lambda x: MODES[x]),
+                        enable_events=True),
         ],
         [
             sg.Frame("Parametri", [
@@ -179,7 +178,7 @@ def mainWindow(workq: Queue, guiq: Queue):
             workq.put(WorkMessage.GETINFO())
         elif event == Id.MODES:
             element, value = window[event], values[event]
-            workq.put(WorkMessage.MODE(element.metadata(value)))
+            workq.put(WorkMessage.MODE(MODES[value]))
         elif event == Id.TIMEOUT:
             pass
         elif event == Id.DIGATT:
@@ -213,8 +212,14 @@ def mainWindow(workq: Queue, guiq: Queue):
                 window[Id.TAB1].Update(disabled=False)
                 window[Id.TAB1].Select()
 
+            def disconnected():
+                nonlocal connected
+                connected = False
+                window[Id.STATUS].Update("Disconnesso!")
+
             msg.match(
                 connected=connected,
+                disconnected=disconnected,
                 send=lambda s: window[Id.LOG].update(
                     explicit(s), text_color_for_value="blue", append=True),
                 recv=lambda s: window[Id.LOG].update(

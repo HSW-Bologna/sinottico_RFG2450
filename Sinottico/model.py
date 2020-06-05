@@ -55,3 +55,4 @@ class GuiMessage:
     ATTENUATION: Case[float]
     OUTPUT: Case[int]
     LOG: Case[str, int, str]
+    DISCONNECTED: Case
