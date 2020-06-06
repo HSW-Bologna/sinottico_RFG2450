@@ -41,6 +41,7 @@ class WorkMessage:
     OUTPUT: Case[int]
     LOG: Case
     SELECTEDTAB: Case[int]
+    SETFREQ: Case[int]
 
 
 @adt

@@ -1,9 +1,18 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractstaticmethod
 from parse import parse  # type: ignore
 import time
 
 from ..model import *
 
+
+def parseSerialNumber(string):
+    if string.startswith('S/N,') and string.endswith('\r\n'):
+        return string.replace('S/N,', '').replace('\r\n', '')
+    else:
+        return None
+
+def parsePar(string):
+    return parse("PAR,{},Wf,{},Wr,{},C\r\n", string)
 
 class Command(ABC):
     def __init__(self, hidden=True):
@@ -52,9 +61,8 @@ class CmdGetSerialNumber(Command):
         return "Read_SN"
 
     def parseResponse(self, response: str) -> bool:
-        if response.startswith('S/N,') and response.endswith('\r\n'):
-            self.serialNumber = response.replace('S/N,',
-                                                 '').replace('\r\n', '')
+        if res := parseSerialNumber(response):
+            self.serialNumber = res
         else:
             self._error = True
         return True
@@ -73,8 +81,35 @@ class CmdGetLog(Command):
     def commandString(self) -> str:
         return "Read_LOG"
 
+    def specialParse(self, response: str):
+        parts = response.split("\r\n")
+        if len(parts) < 4:
+            self._error = True
+            return
+
+        if not parts[0].startswith("S/N,"):
+            self._error = True
+            return
+
+        self.serialNumber = parts[0].replace("S/N,", "")
+
+        if not parts[1].startswith("TIME,"):
+            self._error = True
+            return
+
+        self.lifetimes = int(parts[1].replace("TIME,", ""), 16)
+
+        self.log = parts[2]
+
+        return True
+
     def parseResponse(self, response: str) -> bool:
-        res = parse("S/N,{:d}\r\nTIME,{:x}\r\n{}\r\n", response)
+        self.specialParse(response)
+        return True
+
+        #TODO: questa istruzione ogni tanto causa un errore
+        res = parse("S/N,{:d}\r\nTIME,{:x}\r\n{}\r\n",
+                    "S/N,00.00,\r\nTIME,0x1400\r\nLOG\r\n")  # response)
 
         if len(res.fixed) == 3:
             self.serialNumber = str(res[0])
@@ -99,8 +134,7 @@ class CmdGetPower(Command):
         return "Read_PAR"
 
     def parseResponse(self, response: str) -> bool:
-        self.direct, self.reflected, self.temp = parse(
-            "PAR,{},Wf,{},Wr,{},C\r\n", response)
+        self.direct, self.reflected, self.temp = parsePar(response)
         return True
 
     def result(self):
@@ -196,6 +230,16 @@ class CmdSetMode(CmdSet):
 
     def commandString(self) -> str:
         return "Set_MODE,{}".format(self.mode)
+
+class CmdSetFrequency(CmdSet):
+    def __init__(self, freq, hidden=True):
+        super().__init__(hidden)
+        self.freq = freq
+        self._error = False
+
+    def commandString(self) -> str:
+        return "Set_FRQ,{}".format(self.freq)
+
 
 
 class CmdAny(Command):

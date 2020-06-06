@@ -8,7 +8,6 @@ import time
 from typing import List
 
 from ..serialutils import *
-from ..view.main import mainWindow
 from ..resources import resourcePath
 from ..model import *
 from .commands import *
@@ -30,7 +29,8 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
     config: SerialConfig = SerialConfig()
     currentCmd = None
     error : bool = False
-    timestamp = time.time()
+    timestamp = 0
+    lastmsgts = 0
 
     selectedTab : int = 0
     mode : int = 0
@@ -40,7 +40,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
             msg: WorkMessage = workq.get(timeout=0.1)
 
             def newPort(c: SerialConfig):
-                nonlocal port, cmdq, guiq
+                nonlocal port, cmdq, guiq, timestamp
                 clearq(cmdq)
                 if c.port:
                     config = c
@@ -56,6 +56,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                         port = serial.Serial(
                             port=c.port, baudrate=c.baud, bytesize=bytesize, parity=parity, stopbits=stop, timeout=0.1)
                         guiq.put(GuiMessage.CONNECTED())
+                        #cmdq.put(CmdGetLog()) 
                     except:
                         guiq.put(GuiMessage.DISCONNECTED())
 
@@ -75,6 +76,10 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 nonlocal mode, cmdq
                 mode = x
                 cmdq.put(CmdSetMode(x))
+                
+            def getLog():
+                nonlocal cmdq, guiq
+                cmdq.put(CmdGetLog())
 
             msg.match(
                 newport=newPort,
@@ -83,59 +88,81 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 mode=setMode,
                 att=lambda x : cmdq.put(CmdSetAttenuation(x)),
                 output=lambda x : cmdq.put(CmdSetOutput(x)),
-                log=lambda : cmdq.put(CmdGetLog()),
+                log=getLog,
                 selectedTab=setTab,
+                setfreq=lambda x: cmdq.put(CmdSetFrequency(x, hidden=False)),
             )
         except queue.Empty:
             pass
 
-        if port:
+        if not port:
+            continue
+
+        if currentCmd:
+            if currentCmd.tosend and elapsed(lastmsgts, 0.1):
+                tosend = currentCmd.commandString() + config.endStr()
+                currentCmd.start()
+
+                try:
+                    port.write(tosend.encode())
+                except (OSError, serial.SerialException):
+                    guiq.put(GuiMessage.DISCONNECTED())
+                    port.close()
+                    port = None
+                    continue
+
+                currentCmd.tosend = False
+                lastmsgts = time.time()
+
+                if not currentCmd.hidden:
+                    guiq.put(GuiMessage.SEND(tosend))
+
             try:
                 read = port.read(port.in_waiting)
-            except OSError:
+            except (OSError, serial.SerialException):
                 guiq.put(GuiMessage.DISCONNECTED())
                 port.close()
                 port = None
+                continue
 
-            if currentCmd:
-                if read and not currentCmd.hidden:
-                    guiq.put(GuiMessage.RECV(read.decode(errors='ignore')))
-                    
-                if not currentCmd.sent:
-                    tosend = currentCmd.commandString() + config.endStr()
-                    port.write(tosend.encode())
-                    currentCmd.sent = True
+            if read and not currentCmd.hidden:
+                guiq.put(GuiMessage.RECV(read.decode(errors='ignore')))
 
-                    if not currentCmd.hidden:
-                        guiq.put(GuiMessage.SEND(tosend))
+            if not currentCmd.tosend and currentCmd.timeout():
+                currentCmd.attempts += 1
+                if currentCmd.attempts < 5:
+                    currentCmd.tosend = True
+                else:
+                    currentCmd._error = True
 
-                if currentCmd.error() or currentCmd.timeout():
-                    print(type(currentCmd))
-                    guiq.put(GuiMessage.ERROR())
-                    clearq(cmdq)
-                    error= True
+            if currentCmd.error():
+                guiq.put(GuiMessage.ERROR())
+                clearq(cmdq)
+                error= True
+                currentCmd = None
+            elif read:
+                if currentCmd.parseResponse(read.decode(errors='ignore')):
+                    if result := currentCmd.result():
+                        guiq.put(result)
+
+                    error = False
                     currentCmd = None
-                elif read:
-                    if currentCmd.parseResponse(read.decode(errors='ignore')):
-                        if result := currentCmd.result():
-                            guiq.put(result)
+        else:
+            try:
+                currentCmd = cmdq.get_nowait()
+                currentCmd.tosend = True
+                currentCmd.attempts = 0
 
-                        error = False
-                        currentCmd = None
-            else:
-                try:
-                    currentCmd = cmdq.get_nowait()
-                    currentCmd.sent = False
-                except queue.Empty:
-                    currentCmd = None
+            except queue.Empty:
+                currentCmd = None
 
-            if elapsed(timestamp, 4) and not error:
-                if selectedTab == 1:
-                    cmdq.put(CmdGetPower())
+        if elapsed(timestamp, 4) and not error:
+            if selectedTab == 1:
+                cmdq.put(CmdGetPower())
 
-                if mode == 1:
-                    cmdq.put(CmdGetAttenuation())
-                elif mode == 3:
-                    cmdq.put(CmdGetOutput())                
-                
-                timestamp = time.time()
+            if mode == 1:
+                cmdq.put(CmdGetAttenuation())
+            elif mode == 3:
+                cmdq.put(CmdGetOutput())                
+            
+            timestamp = time.time()

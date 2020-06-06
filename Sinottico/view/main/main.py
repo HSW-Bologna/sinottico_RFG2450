@@ -2,50 +2,31 @@ from queue import Queue
 import queue
 from enum import Enum, auto
 import PySimpleGUI as sg  # type: ignore
-from .settings import settingsWindow
-from ..resources import resourcePath
-from ..model import *
+from ..settings import settingsWindow
+from ...resources import resourcePath
+from ...model import *
+from .elements import Id
+from .test_procedure import automatedTestProcedure
 
 MODES = {"Modalita' {}".format(v): v for v in range(4)}
-
-
-class Id(Enum):
-    CONNECT = auto()
-    SETTINGS = auto()
-    TIMEOUT = auto()
-    SEND = auto()
-    END = auto()
-    INPUT = auto()
-    LOG = auto()
-    SN = auto()
-    INFO = auto()
-    REVISION = auto()
-    MODES = auto()
-    STATUS = auto()
-    DIRPWR = auto()
-    REFPWR = auto()
-    TEMP = auto()
-    ATTLBL = auto()
-    POWLBL = auto()
-    ATT = auto()
-    POW = auto()
-    DIGATT = auto()
-    DIGPOW = auto()
-    MAINTAB = auto()
-    LOGLOG = auto()
-    LOGHOURS = auto()
-    TAB1 = auto()
-    TAB2 = auto()
-    TAB3 = auto()
-    TAB4 = auto()
-    TAB5 = auto()
 
 
 def explicit(s):
     return s.replace('\r', '\\r').replace('\n', '\\n\n')
 
 
+def startAutomatedTest(w, workq, guiq, template, destination):
+    elements = [
+        Id.SETTINGS, Id.CONNECT, Id.TAB1, Id.TAB3, Id.TAB4, Id.TAB5,
+        Id.AUTOTEST
+    ]
+    [w[x].Update(disabled=True) for x in elements]
+    automatedTestProcedure(w, workq, guiq, template, destination)
+    [w[x].Update(disabled=False) for x in elements]
+
+
 def mainWindow(workq: Queue, guiq: Queue):
+    sg.theme("DefaultNoMoreNagging")
     connected: bool = False
 
     tab1 = [
@@ -101,7 +82,33 @@ def mainWindow(workq: Queue, guiq: Queue):
         ],
     ]
 
-    tab2: List[List[sg.Element]] = [[]]
+    tab2: List[List[sg.Element]] = [
+        [
+            sg.Input("", size=(48, 1), key=Id.TEMPLATE),
+            sg.FileBrowse("Template",
+                          file_types=(('Excel files', "*.xlsx"), ),
+                          size=(16, 1),
+                          key=Id.TEMPBTN),
+        ],
+        [
+            sg.Input("", size=(48, 1), key=Id.DESTINATION),
+            sg.FolderBrowse("Destinazione", size=(16, 1), key=Id.DESTBTN),
+        ],
+        [
+            sg.Spin(["{:.2f}".format(x / 100.) for x in range(5, 155, 5)],
+                    initial_value="1.00",
+                    size=(5, 1),
+                    key=Id.K),
+            sg.Text("Coefficiente K")
+        ],
+        [sg.Button("Avvio Procedura", key=Id.AUTOTEST)],
+        [
+            sg.Multiline(disabled=True,
+                         autoscroll=True,
+                         key=Id.LOGAUTO,
+                         size=(64, 15))
+        ],
+    ]
 
     tab3: List[List[sg.Element]] = [[]]
 
@@ -138,7 +145,11 @@ def mainWindow(workq: Queue, guiq: Queue):
                               key=Id.MAINTAB,
                               enable_events=True)
               ],
-              [sg.Text("Selezionare una porta e connetersi", key=Id.STATUS)]]
+              [
+                  sg.Text("Selezionare una porta e connetersi",
+                          key=Id.STATUS,
+                          size=(64, 1))
+              ]]
 
     # Create the Window
     window = sg.Window('Window Title', layout, finalize=True)
@@ -156,6 +167,9 @@ def mainWindow(workq: Queue, guiq: Queue):
         event, values = window.read(timeout=0.1, timeout_key=Id.TIMEOUT)
         if event in (None, 'Cancel'):  # if user closes window or clicks cancel
             break
+
+        window[Id.AUTOTEST].Update(
+            disabled=not (values[Id.TEMPLATE] and values[Id.DESTINATION]))
 
         if event == Id.SETTINGS:
             config = settingsWindow(config)
@@ -199,6 +213,13 @@ def mainWindow(workq: Queue, guiq: Queue):
                 workq.put(WorkMessage.SELECTEDTAB(4))
             elif value != None:
                 workq.put(WorkMessage.SELECTEDTAB(0))
+        elif event == Id.DESTBTN:
+            window[Id.DESTINATION].Update(values[event])
+        elif event == Id.TEMPBTN:
+            window[Id.TEMPLATE].Update(values[event])
+        elif event == Id.AUTOTEST:
+            startAutomatedTest(window, workq, guiq, values[Id.TEMPLATE],
+                               values[Id.DESTINATION])
         else:
             print(event)
 

@@ -53,7 +53,7 @@ def settingsWindow(config: SerialConfig):
                      [[sg.Text('Fine'), sg.Combo(['Niente', 'CR', 'LF', 'CR+LF'], default_value=config.end, key=Id.END)]]),
          ],
         [sg.Button('Ok', key=Id.OK)]]
-    window = sg.Window('Impostazioni', layout, finalize=True)
+    window = sg.Window('Impostazioni', layout, finalize=True, keep_on_top=True)
 
     while True:
         event, values = window.read()

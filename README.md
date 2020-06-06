@@ -13,6 +13,4 @@ Una volta scaricata la repository, il programma puo' essere eseguito lanciando l
 
 # TODO
 
- - Connettere la seriale per la prima volta e non richiederlo piu'
- - Disabilitare le Tab quando la seriale non e' connessa
- - Non inviare messaggi periodici/automatici
+    - Gestire tutte le possibili eccezioni
