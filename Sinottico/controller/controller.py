@@ -156,7 +156,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
             except queue.Empty:
                 currentCmd = None
 
-        if elapsed(timestamp, 4) and not error:
+        if elapsed(timestamp, 2) and not error:
             if selectedTab == 1:
                 cmdq.put(CmdGetPower())
 

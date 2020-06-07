@@ -74,6 +74,14 @@ def sendCommand(msg, w, workq, guiq):
         except AttributeError:
             pass
 
+        try:
+            res = msg.disconnected()
+            guiq.put(msg)
+            w.Refresh()
+            return None
+        except AttributeError:
+            pass
+
 
 def automatedTestProcedure(w, workq, guiq, template, destination):
     def readParameters(t, w, workq, guiq):

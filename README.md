@@ -13,4 +13,4 @@ Una volta scaricata la repository, il programma puo' essere eseguito lanciando l
 
 # TODO
 
-    - Gestire tutte le possibili eccezioni
+    - Gestire tutte le possibili eccezioni (Per esempio nella procedura automatica se arriva un messaggio malformato)

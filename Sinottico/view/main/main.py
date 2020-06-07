@@ -32,30 +32,39 @@ def mainWindow(workq: Queue, guiq: Queue):
     tab1 = [
         [
             sg.Frame("Informazioni",
-                     [[sg.Text("Numero di serie: "),
+                     [[sg.Sizer(700, 0)],
+                      [sg.Text("Numero di serie: "),
                        sg.Input(key=Id.SN)],
                       [sg.Text("", key=Id.REVISION, size=(40, None))],
-                      [sg.Button("Richiedi", key=Id.INFO)]])
+                      [sg.Button("Richiedi", key=Id.INFO)]],
+                     pad=(0, 10))
         ],
         [
             sg.TabGroup([[
                 sg.Tab(
-                    list(MODES.keys())[0], [[
-                        sg.Text(
-                            "Attenuazione: 0.00", size=(20, 1), key=Id.ATTLBL),
-                        sg.Slider(range=(0, 3200),
-                                  resolution=25,
-                                  disable_number_display=True,
-                                  tooltip="Attenuazione",
-                                  orientation="horizontal",
-                                  enable_events=True,
-                                  key=Id.DIGATT)
+                    list(MODES.keys())[0],
+                    [[sg.Sizer(700, 0)],
+                     [
+                         sg.Sizer(0, 80),
+                         sg.Text("Attenuazione: 0.00",
+                                 size=(20, 1),
+                                 key=Id.ATTLBL),
+                         sg.Slider(range=(0, 3200),
+                                   resolution=25,
+                                   disable_number_display=True,
+                                   tooltip="Attenuazione",
+                                   orientation="horizontal",
+                                   enable_events=True,
+                                   key=Id.DIGATT)
+                     ]]),
+                sg.Tab(
+                    list(MODES.keys())[1], [[
+                        sg.Sizer(0, 80),
+                        sg.Text("Attenuazione: ", key=Id.ATT, size=(32, 1))
                     ]]),
                 sg.Tab(
-                    list(MODES.keys())[1],
-                    [[sg.Text("Attenuazione: ", key=Id.ATT, size=(32, 1))]]),
-                sg.Tab(
                     list(MODES.keys())[2], [[
+                        sg.Sizer(0, 80),
                         sg.Text("Potenza: 0 W", size=(20, 1), key=Id.POWLBL),
                         sg.Slider(range=(0, 300),
                                   orientation="horizontal",
@@ -64,21 +73,26 @@ def mainWindow(workq: Queue, guiq: Queue):
                                   key=Id.DIGPOW)
                     ]]),
                 sg.Tab(
-                    list(MODES.keys())[3],
-                    [[sg.Text("Potenza: ", key=Id.POW, size=(32, 1))]]),
+                    list(MODES.keys())[3], [[
+                        sg.Sizer(0, 80),
+                        sg.Text("Potenza: ", key=Id.POW, size=(32, 1))
+                    ]]),
             ]],
                         key=Id.MODES,
-                        enable_events=True),
+                        enable_events=True,
+                        pad=(0, 20)),
         ],
         [
             sg.Frame("Parametri", [
+                [sg.Sizer(700, 0)],
                 [sg.Text("Potenza diretta:", key=Id.DIRPWR, size=(32, 1))],
                 [sg.Text("Potenza riflessa:", key=Id.REFPWR, size=(32, 1))],
                 [
                     sg.Text("Temperatura: ", size=(32, 1), key=Id.TEMP),
                     sg.Text("SWR: ", size=(32, 1)),
                 ],
-            ])
+            ],
+                     pad=(0, 20))
         ],
     ]
 
@@ -106,7 +120,7 @@ def mainWindow(workq: Queue, guiq: Queue):
             sg.Multiline(disabled=True,
                          autoscroll=True,
                          key=Id.LOGAUTO,
-                         size=(64, 15))
+                         size=(68, 15))
         ],
     ]
 
@@ -114,14 +128,14 @@ def mainWindow(workq: Queue, guiq: Queue):
 
     tab4 = [
         [sg.Text("Ore di lavoro:", size=(40, 1), key=Id.LOGHOURS)],
-        [sg.Multiline(size=(64, 20), disabled=True, key=Id.LOGLOG)],
+        [sg.Multiline(size=(68, 20), disabled=True, key=Id.LOGLOG)],
     ]
 
     tab5 = [[
-        sg.Multiline(size=(64, 20), key=Id.LOG, autoscroll=True, disabled=True)
+        sg.Multiline(size=(68, 20), key=Id.LOG, autoscroll=True, disabled=True)
     ],
             [
-                sg.Input(size=(60, None), key=Id.INPUT),
+                sg.Input(size=(64, None), key=Id.INPUT),
                 sg.Button(image_filename=resourcePath('send.png'),
                           bind_return_key=True,
                           key=Id.SEND)
@@ -169,7 +183,7 @@ def mainWindow(workq: Queue, guiq: Queue):
             break
 
         window[Id.AUTOTEST].Update(
-            disabled=not (values[Id.TEMPLATE] and values[Id.DESTINATION]))
+            disabled=(not connected) or (not (values[Id.TEMPLATE] and values[Id.DESTINATION])))
 
         if event == Id.SETTINGS:
             config = settingsWindow(config)
