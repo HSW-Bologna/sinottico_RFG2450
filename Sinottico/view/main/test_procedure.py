@@ -13,7 +13,7 @@ from ..adjustPopup import adjustPopup
 from ...model import WorkMessage
 from ...controller.commands import parseSerialNumber, parsePar
 
-TMARGIN = 50
+TMARGIN = 5
 
 
 def saveData(wb, data1, data2, destination, serial, ver):

@@ -32,7 +32,7 @@ def mainWindow(workq: Queue, guiq: Queue):
     tab1 = [
         [
             sg.Frame("Informazioni",
-                     [[sg.Sizer(700, 0)],
+                     [[sg.Sizer(500, 0)],
                       [sg.Text("Numero di serie: "),
                        sg.Input(key=Id.SN)],
                       [sg.Text("", key=Id.REVISION, size=(40, None))],
@@ -43,7 +43,7 @@ def mainWindow(workq: Queue, guiq: Queue):
             sg.TabGroup([[
                 sg.Tab(
                     list(MODES.keys())[0],
-                    [[sg.Sizer(700, 0)],
+                    [[sg.Sizer(500, 0)],
                      [
                          sg.Sizer(0, 80),
                          sg.Text("Attenuazione: 0.00",
@@ -84,12 +84,12 @@ def mainWindow(workq: Queue, guiq: Queue):
         ],
         [
             sg.Frame("Parametri", [
-                [sg.Sizer(700, 0)],
+                [sg.Sizer(500, 0)],
                 [sg.Text("Potenza diretta:", key=Id.DIRPWR, size=(32, 1))],
                 [sg.Text("Potenza riflessa:", key=Id.REFPWR, size=(32, 1))],
                 [
                     sg.Text("Temperatura: ", size=(32, 1), key=Id.TEMP),
-                    sg.Text("SWR: ", size=(32, 1)),
+                    sg.Text("SWR: ", size=(12, 1)),
                 ],
             ],
                      pad=(0, 20))
@@ -166,7 +166,7 @@ def mainWindow(workq: Queue, guiq: Queue):
               ]]
 
     # Create the Window
-    window = sg.Window('Window Title', layout, finalize=True)
+    window = sg.Window('Collaudo RFG2450', layout, finalize=True)
 
     config = SerialConfig()
 
