@@ -1,7 +1,9 @@
 from queue import Queue
 import queue
 from enum import Enum, auto
+import time
 import PySimpleGUI as sg  # type: ignore
+
 from ..settings import settingsWindow
 from ...resources import resourcePath
 from ...model import *
@@ -14,6 +16,18 @@ MODES = {"Modalita' {}".format(v): v for v in range(4)}
 def explicit(s):
     return s.replace('\r', '\\r').replace('\n', '\\n\n')
 
+def elapsed(start, delay):
+    return time.time() - start > delay
+
+def calculateVSWR(pref, pfwr):
+    import math
+    if pfwr == 0:
+        return None
+    elif 1 - math.sqrt(pref / pfwr) == 0:
+        return None
+    else:
+        return (1 + math.sqrt(pref / pfwr)) / (1 - math.sqrt(pref / pfwr))
+
 
 def startAutomatedTest(w, workq, guiq, template, destination):
     elements = [
@@ -23,6 +37,14 @@ def startAutomatedTest(w, workq, guiq, template, destination):
     [w[x].Update(disabled=True) for x in elements]
     automatedTestProcedure(w, workq, guiq, template, destination)
     [w[x].Update(disabled=False) for x in elements]
+
+
+def selectMode(w, mode):
+    modes = [Id.TABMODE1, Id.TABMODE2, Id.TABMODE3, Id.TABMODE4]
+    [w[x].Update(disabled=True) for x in modes]
+    w[modes[mode]].Update(disabled=False)
+    w[modes[mode]].Select()
+    w[Id.MODES].Update(value={v: k for k, v in MODES.items()}[mode])
 
 
 def mainWindow(workq: Queue, guiq: Queue):
@@ -40,47 +62,64 @@ def mainWindow(workq: Queue, guiq: Queue):
                      pad=(0, 10))
         ],
         [
-            sg.TabGroup([[
-                sg.Tab(
-                    list(MODES.keys())[0],
-                    [[sg.Sizer(500, 0)],
-                     [
-                         sg.Sizer(0, 80),
-                         sg.Text("Attenuazione: 0.00",
-                                 size=(20, 1),
-                                 key=Id.ATTLBL),
-                         sg.Slider(range=(0, 3200),
-                                   resolution=25,
-                                   disable_number_display=True,
-                                   tooltip="Attenuazione",
-                                   orientation="horizontal",
-                                   enable_events=True,
-                                   key=Id.DIGATT)
-                     ]]),
-                sg.Tab(
-                    list(MODES.keys())[1], [[
-                        sg.Sizer(0, 80),
-                        sg.Text("Attenuazione: ", key=Id.ATT, size=(32, 1))
-                    ]]),
-                sg.Tab(
-                    list(MODES.keys())[2], [[
-                        sg.Sizer(0, 80),
-                        sg.Text("Potenza: 0 W", size=(20, 1), key=Id.POWLBL),
-                        sg.Slider(range=(0, 300),
-                                  orientation="horizontal",
-                                  enable_events=True,
-                                  disable_number_display=True,
-                                  key=Id.DIGPOW)
-                    ]]),
-                sg.Tab(
-                    list(MODES.keys())[3], [[
-                        sg.Sizer(0, 80),
-                        sg.Text("Potenza: ", key=Id.POW, size=(32, 1))
-                    ]]),
-            ]],
-                        key=Id.MODES,
-                        enable_events=True,
-                        pad=(0, 20)),
+            sg.Frame("Modalita'", [
+                [
+                    sg.Combo(list(MODES.keys()),
+                             key=Id.MODES,
+                             enable_events=True,
+                             size=(20, 1),
+                             readonly=True)
+                ],
+                [
+                    sg.TabGroup([[
+                        sg.Tab("", [[sg.Sizer(500, 0)],
+                                    [
+                                        sg.Sizer(0, 80),
+                                        sg.Text("Attenuazione: 0.00",
+                                                size=(20, 1),
+                                                key=Id.ATTLBL),
+                                        sg.Slider(range=(0, 3200),
+                                                  resolution=25,
+                                                  disable_number_display=True,
+                                                  tooltip="Attenuazione",
+                                                  orientation="horizontal",
+                                                  enable_events=True,
+                                                  key=Id.DIGATT)
+                                    ]],
+                               key=Id.TABMODE1,
+                               disabled=True,
+                               visible=False),
+                        sg.Tab("", [[
+                            sg.Sizer(0, 80),
+                            sg.Text("Attenuazione: ", key=Id.ATT, size=(32, 1))
+                        ]],
+                               key=Id.TABMODE2,
+                               disabled=True,
+                               visible=False),
+                        sg.Tab("", [[
+                            sg.Sizer(0, 80),
+                            sg.Text(
+                                "Potenza: 0 W", size=(20, 1), key=Id.POWLBL),
+                            sg.Slider(range=(0, 300),
+                                      orientation="horizontal",
+                                      enable_events=True,
+                                      disable_number_display=True,
+                                      key=Id.DIGPOW)
+                        ]],
+                               key=Id.TABMODE3,
+                               disabled=True,
+                               visible=False),
+                        sg.Tab("", [[
+                            sg.Sizer(0, 80),
+                            sg.Text("Potenza: ", key=Id.POW, size=(32, 1))
+                        ]],
+                               key=Id.TABMODE4,
+                               disabled=True,
+                               visible=False),
+                    ]],
+                                pad=(0, 20))
+                ],
+            ]),
         ],
         [
             sg.Frame("Parametri", [
@@ -88,8 +127,8 @@ def mainWindow(workq: Queue, guiq: Queue):
                 [sg.Text("Potenza diretta:", key=Id.DIRPWR, size=(32, 1))],
                 [sg.Text("Potenza riflessa:", key=Id.REFPWR, size=(32, 1))],
                 [
-                    sg.Text("Temperatura: ", size=(32, 1), key=Id.TEMP),
-                    sg.Text("SWR: ", size=(12, 1)),
+                    sg.Text("Temperatura: ", size=(24, 1), key=Id.TEMP),
+                    sg.Text("VSWR: ", size=(12, 1), key=Id.SWR),
                 ],
             ],
                      pad=(0, 20))
@@ -182,8 +221,8 @@ def mainWindow(workq: Queue, guiq: Queue):
         if event in (None, 'Cancel'):  # if user closes window or clicks cancel
             break
 
-        window[Id.AUTOTEST].Update(
-            disabled=(not connected) or (not (values[Id.TEMPLATE] and values[Id.DESTINATION])))
+        window[Id.AUTOTEST].Update(disabled=(not connected) or (
+            not (values[Id.TEMPLATE] and values[Id.DESTINATION])))
 
         if event == Id.SETTINGS:
             config = settingsWindow(config)
@@ -241,11 +280,12 @@ def mainWindow(workq: Queue, guiq: Queue):
             msg: GuiMessage = guiq.get(timeout=0.1)
 
             def connected():
-                nonlocal connected
+                nonlocal connected, workq
                 connected = True
                 window[Id.STATUS].Update("Connesso!")
                 window[Id.TAB1].Update(disabled=False)
                 window[Id.TAB1].Select()
+                workq.put(WorkMessage.HANDSHAKE())
 
             def disconnected():
                 nonlocal connected
@@ -265,18 +305,27 @@ def mainWindow(workq: Queue, guiq: Queue):
                 power=lambda x, y, z:
                 (window[Id.DIRPWR].Update("Potenza diretta: {} W".format(x)),
                  window[Id.REFPWR].Update("Potenza riflessa: {} W".format(
-                     y)), window[Id.TEMP].Update("Temperatura: {}".format(z))),
+                     y)), window[Id.TEMP].Update("Temperatura: {}".format(
+                         z)), window[Id.SWR].Update("VSWR: {}".format(
+                             calculateVSWR(float(y), float(x))))),
                 error=lambda: window[Id.STATUS].Update(
                     "Errore di comunicazione!"),
-                attenuation=lambda x: window[Id.ATT].Update("Attenuazione: {}".
-                                                            format(x)),
+                attenuation=lambda x:
+                (window[Id.ATT].Update("Attenuazione: {}".format(x), window[
+                    Id.DIGATT].Update(value=x * 100)), window[Id.ATTLBL].
+                 Update("Attenuazione: {}".format(x))),
                 output=lambda x: window[Id.POW].Update("Potenza: {} W".format(
                     x)),
                 log=lambda x, y, z: (window[Id.SN].Update(x), window[
                     Id.LOGHOURS].Update("Ore di lavoro: {}".format(y), window[
-                        Id.LOGLOG].update(z))))
+                        Id.LOGLOG].update(z))),
+                mode=lambda x: selectMode(window, x),
+            )
 
         except queue.Empty:
+            pass
+
+        if connected:
             pass
 
     window.close()

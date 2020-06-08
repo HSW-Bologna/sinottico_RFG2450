@@ -42,6 +42,7 @@ class WorkMessage:
     LOG: Case
     SELECTEDTAB: Case[int]
     SETFREQ: Case[int]
+    HANDSHAKE: Case
 
 
 @adt
@@ -57,3 +58,4 @@ class GuiMessage:
     OUTPUT: Case[int]
     LOG: Case[str, int, str]
     DISCONNECTED: Case
+    MODE: Case[int]

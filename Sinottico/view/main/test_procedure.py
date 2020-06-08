@@ -11,7 +11,6 @@ from ..delayPopup import delayPopup
 from ..yesNoPopup import yesNoPopup
 from ..adjustPopup import adjustPopup
 from ...model import WorkMessage
-from ...controller.commands import parseSerialNumber, parsePar
 
 TMARGIN = 5
 
@@ -88,13 +87,18 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
         while True:
             if res := sendCommand(WorkMessage.SEND("Read_PAR"), w, workq,
                                   guiq):
-                _, _, temp = parse.parse("PAR,{},Wf,{},Wr,{},C\r\n", res)
-                temp = float(temp)
+                try:
+                    _, _, temp = parse.parse("PAR,{},Wf,{},Wr,{},C\r\n", res)
+                    temp = float(temp)
+                except TypeError:
+                    w[Id.STATUS].Update("Errore di comunicazione!")
+                    return False
 
                 if not (temp >= t - TMARGIN and temp <= t + TMARGIN):
-                    if not sg.PopupTimed(
+                    if not sg.Popup(
                             "Mantenere il dispositivo alla temperatura di {:.2f} C!"
                             .format(t),
+                            button_type=sg.POPUP_BUTTONS_NO_BUTTONS,
                             title="Attenzione!",
                             keep_on_top=True,
                             auto_close_duration=10):
@@ -107,8 +111,11 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
                 return False
 
         if res := sendCommand(WorkMessage.SEND("Read_ADC"), w, workq, guiq):
-            adcc, adcf, adcr, adct, adcp = parse.parse(
-                "{:d},{:d},{:d},{:d},{:d}\r\n", res)
+            try:
+                adcc, adcf, adcr, adct, adcp = parse.parse(
+                    "{:d},{:d},{:d},{:d},{:d}\r\n", res)
+            except TypeError:
+                return False
         else:
             w[Id.STATUS].Update("Errore di comunicazione!")
             return False
@@ -118,19 +125,19 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
     def firstTest(temperature, w, workq, guiq, data):
         attenuation = 32
 
+        if not sg.Popup(
+                "Verifica carico 500HM correttamente inserito e temperatura impostata {:.2f} C"
+                .format(temperature),
+                keep_on_top=True,
+                title="Attenzione!"):
+            w[Id.STATUS].Update("Procedura interrotta!")
+            return False
+
         while attenuation >= 0:
             if not sendCommand(
                     WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), w,
                     workq, guiq):
                 w[Id.STATUS].Update("Errore di comunicazione!")
-                return False
-
-            if not sg.Popup(
-                    "Verifica carico 500HM correttamente inserito e temperatura impostata {:.2f} C"
-                    .format(temperature),
-                    keep_on_top=True,
-                    title="Attenzione!"):
-                w[Id.STATUS].Update("Procedura interrotta!")
                 return False
 
             if readings := readParameters(temperature, w, workq, guiq):
@@ -195,16 +202,22 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
         "Procedura di acquisizione automatica dei dati in corso...")
 
     if not sendCommand(WorkMessage.SEND("Set_FRQ,2450000"), w, workq, guiq):
+        w[Id.STATUS].Update("Errore di comunicazione!")
         return
 
     if sn := sendCommand(WorkMessage.SEND("Read_SN"), w, workq, guiq):
-        serialNumber = parseSerialNumber(sn)
+        serialNumber = parse.parse("S/N,{}\r\n")
+        if not serialNumber:
+            w[Id.STATUS].Update("Errore di comunicazione!")
+            return
     else:
+        w[Id.STATUS].Update("Errore di comunicazione!")
         return
 
     if sw := sendCommand(WorkMessage.SEND("Read_REV"), w, workq, guiq):
         swVer = sw.split('\r\n')[1].replace("FW Ver. ", '')
     else:
+        w[Id.STATUS].Update("Errore di comunicazione!")
         return
 
     if not sendCommand(WorkMessage.SEND("Set_MODE,0"), w, workq, guiq):
@@ -232,6 +245,7 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
 
     if res := yesNoPopup("Procedura terminata. Salvare i dati?"):
         saveData(wb, data1, data2,
-                 os.path.join(destination, os.path.basename(template)), serialNumber, swVer)
+                 os.path.join(destination, os.path.basename(template)),
+                 serialNumber, swVer)
 
     w[Id.STATUS].Update("Procedura terminata!")

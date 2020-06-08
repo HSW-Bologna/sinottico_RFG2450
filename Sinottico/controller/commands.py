@@ -71,6 +71,26 @@ class CmdGetSerialNumber(Command):
         return GuiMessage.SERIAL(self.serialNumber)
 
 
+class CmdGetMode(Command):
+    def __init__(self):
+        super().__init__()
+        self.mode = None
+
+    def commandString(self) -> str:
+        return "Read_MODE"
+
+    def parseResponse(self, response: str) -> bool:
+        if response.startswith("MODE,") and response.endswith("\r\n"):
+        #if res := parse("MODE,{:d}\r\n", response):
+            self.mode = int(response.replace("MODE,", "").replace("\r\n", ""))
+        else:
+            self._error = True
+        return True
+
+    def result(self):
+        return GuiMessage.MODE(self.mode)
+
+
 class CmdGetLog(Command):
     def __init__(self):
         super().__init__()
