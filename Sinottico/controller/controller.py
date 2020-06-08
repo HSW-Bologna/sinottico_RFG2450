@@ -132,7 +132,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
             continue
 
         if currentCmd:
-            if currentCmd.tosend and elapsed(lastmsgts, 0.1):
+            if currentCmd.tosend and elapsed(lastmsgts, 0.05):
                 tosend = currentCmd.commandString() + config.endStr()
                 currentCmd.start()
 

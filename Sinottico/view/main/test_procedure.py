@@ -206,7 +206,7 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
         return
 
     if sn := sendCommand(WorkMessage.SEND("Read_SN"), w, workq, guiq):
-        serialNumber = parse.parse("S/N,{}\r\n")
+        serialNumber = parse.parse("S/N,{}\r\n", sn)
         if not serialNumber:
             w[Id.STATUS].Update("Errore di comunicazione!")
             return
