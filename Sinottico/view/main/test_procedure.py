@@ -10,6 +10,7 @@ from .elements import Id
 from ..delayPopup import delayPopup
 from ..yesNoPopup import yesNoPopup
 from ..adjustPopup import adjustPopup
+from ..popupTimedCancel import popupTimedCancel
 from ...model import WorkMessage
 
 TMARGIN = 5
@@ -95,14 +96,12 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
                     return False
 
                 if not (temp >= t - TMARGIN and temp <= t + TMARGIN):
-                    if not sg.Popup(
+                    if popupTimedCancel(
+                            "Attenzione!",
                             "Mantenere il dispositivo alla temperatura di {:.2f} C!"
                             .format(t),
-                            button_type=sg.POPUP_BUTTONS_NO_BUTTONS,
-                            title="Attenzione!",
-                            keep_on_top=True,
-                            auto_close_duration=10):
-                        w[Id.STATUS].Update("Procedura interrotta!")
+                            10, key="Interrompi") == "Interrompi":
+                        w[Id.STATUS].Update("Procedura interrotta")
                         return False
                 else:
                     break

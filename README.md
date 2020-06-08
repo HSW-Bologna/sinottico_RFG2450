@@ -17,3 +17,4 @@ Una volta scaricata la repository, il programma puo' essere eseguito lanciando l
     - Inviare i messaggi periodici dalla view, non dal controller
     - Raccogliere tutte le variabili in delle strutture
     - Smettere di usare implicitamente '\r\n' come fine riga, sfruttare l'opzione configurata
+    - Riunire i popup in un unico file
