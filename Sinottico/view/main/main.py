@@ -3,6 +3,7 @@ import queue
 from enum import Enum, auto
 import time
 import PySimpleGUI as sg  # type: ignore
+from types import SimpleNamespace
 
 from ..settings import settingsWindow
 from ...resources import resourcePath
@@ -16,8 +17,14 @@ MODES = {"Modalita' {}".format(v): v for v in range(4)}
 def explicit(s):
     return s.replace('\r', '\\r').replace('\n', '\\n\n')
 
-def elapsed(start, delay):
-    return time.time() - start > delay
+
+def updateWidgets(m, window):
+    [
+        window[x].Update(disabled=not m.connected) for x in
+        [Id.SEND, Id.INFO, Id.TAB1, Id.TAB2, Id.TAB3, Id.TAB4, Id.TAB5, Id.AUTOTEST, Id.RETRYAUTOTEST]
+    ]
+
+
 
 def calculateVSWR(pref, pfwr):
     import math
@@ -29,27 +36,35 @@ def calculateVSWR(pref, pfwr):
         return (1 + math.sqrt(pref / pfwr)) / (1 - math.sqrt(pref / pfwr))
 
 
-def startAutomatedTest(w, workq, guiq, template, destination):
+def startAutomatedTest(m, w, template, destination):
     elements = [
         Id.SETTINGS, Id.CONNECT, Id.TAB1, Id.TAB3, Id.TAB4, Id.TAB5,
-        Id.AUTOTEST
+        Id.AUTOTEST, Id.RETRYAUTOTEST
     ]
     [w[x].Update(disabled=True) for x in elements]
-    automatedTestProcedure(w, workq, guiq, template, destination)
+    data = automatedTestProcedure(m, w, template, destination)
     [w[x].Update(disabled=False) for x in elements]
+    return None
 
 
 def selectMode(w, mode):
+    revmodes = {v: k for k, v in MODES.items()}
     modes = [Id.TABMODE1, Id.TABMODE2, Id.TABMODE3, Id.TABMODE4]
     [w[x].Update(disabled=True) for x in modes]
     w[modes[mode]].Update(disabled=False)
     w[modes[mode]].Select()
-    w[Id.MODES].Update(value={v: k for k, v in MODES.items()}[mode])
+    w[Id.MODES].Update(value=revmodes[mode])
 
 
 def mainWindow(workq: Queue, guiq: Queue):
     sg.theme("DefaultNoMoreNagging")
-    connected: bool = False
+    m: SimpleNamespace = SimpleNamespace(connected=False,
+                                         mode=0,
+                                         timestamp=0,
+                                         tab=0,
+                                         collectedData=None,
+                                         workq=workq,
+                                         guiq=guiq)
 
     tab1 = [
         [
@@ -154,7 +169,10 @@ def mainWindow(workq: Queue, guiq: Queue):
                     key=Id.K),
             sg.Text("Coefficiente K")
         ],
-        [sg.Button("Avvio Procedura", key=Id.AUTOTEST)],
+        [
+            sg.Button("Avvio Procedura", key=Id.AUTOTEST),
+            sg.Button("Riprendi", key=Id.RETRYAUTOTEST)
+        ],
         [
             sg.Multiline(disabled=True,
                          autoscroll=True,
@@ -212,17 +230,17 @@ def mainWindow(workq: Queue, guiq: Queue):
     # Event Loop to process "events" and get the "values" of the inputs
     while True:
         window[Id.CONNECT].Update(disabled=not config.port)
-        [
-            window[x].Update(disabled=not connected) for x in
-            [Id.SEND, Id.INFO, Id.TAB1, Id.TAB2, Id.TAB3, Id.TAB4, Id.TAB5]
-        ]
+        updateWidgets(m, window)
 
         event, values = window.read(timeout=0.1, timeout_key=Id.TIMEOUT)
         if event in (None, 'Cancel'):  # if user closes window or clicks cancel
             break
 
-        window[Id.AUTOTEST].Update(disabled=(not connected) or (
+        window[Id.AUTOTEST].Update(disabled=(not m.connected) or (
             not (values[Id.TEMPLATE] and values[Id.DESTINATION])))
+        window[Id.RETRYAUTOTEST].Update(disabled=(not m.connected) or (
+            not (values[Id.TEMPLATE] and values[Id.DESTINATION]))
+                                        or not m.collectedData)
 
         if event == Id.SETTINGS:
             config = settingsWindow(config)
@@ -238,63 +256,71 @@ def mainWindow(workq: Queue, guiq: Queue):
                               timeout_key=Id.TIMEOUT)[0] != Id.TIMEOUT:
                 pass
         elif event == Id.CONNECT:
-            workq.put(WorkMessage.NEWPORT(config))
+            m.workq.put(WorkMessage.NEWPORT(config))
         elif event == Id.SEND:
-            workq.put(WorkMessage.SEND(values[Id.INPUT]))
+            m.workq.put(WorkMessage.SEND(values[Id.INPUT]))
         elif event == Id.INFO:
-            workq.put(WorkMessage.GETINFO())
+            m.workq.put(WorkMessage.GETINFO())
         elif event == Id.MODES:
             element, value = window[event], values[event]
-            workq.put(WorkMessage.MODE(MODES[value]))
+            m.workq.put(WorkMessage.MODE(MODES[value]))
         elif event == Id.TIMEOUT:
             pass
         elif event == Id.DIGATT:
             value = values[event] / 100.
             window[Id.ATTLBL].Update("Attenuazione: {:.2f}".format(value))
-            workq.put(WorkMessage.ATT(value))
+            m.workq.put(WorkMessage.ATT(value))
         elif event == Id.DIGPOW:
             value = values[event]
             window[Id.POWLBL].Update("Potenza: {} W".format(value))
-            workq.put(WorkMessage.OUTPUT(value))
+            m.workq.put(WorkMessage.OUTPUT(value))
         elif event == Id.MAINTAB:
-            value = values[event]
-
-            if value == Id.TAB1:
-                workq.put(WorkMessage.SELECTEDTAB(1))
-            elif value == Id.TAB4:
-                workq.put(WorkMessage.LOG())
-                workq.put(WorkMessage.SELECTEDTAB(4))
-            elif value != None:
-                workq.put(WorkMessage.SELECTEDTAB(0))
+            if value := values[event]:
+                m.tab = {
+                    Id.TAB1: 1,
+                    Id.TAB2: 2,
+                    Id.TAB3: 3,
+                    Id.TAB4: 4,
+                    Id.TAB5: 5
+                }[value]
+                if value == Id.TAB4:
+                    m.workq.put(WorkMessage.LOG())
         elif event == Id.DESTBTN:
             window[Id.DESTINATION].Update(values[event])
         elif event == Id.TEMPBTN:
             window[Id.TEMPLATE].Update(values[event])
-        elif event == Id.AUTOTEST:
-            startAutomatedTest(window, workq, guiq, values[Id.TEMPLATE],
-                               values[Id.DESTINATION])
+        elif event in [Id.AUTOTEST, Id.RETRYAUTOTEST]:
+            if event == Id.AUTOTEST:
+                m.collectedData = None
+            m.data = startAutomatedTest(m, window, values[Id.TEMPLATE],
+                                        values[Id.DESTINATION])
         else:
             print(event)
 
         try:
             msg: GuiMessage = guiq.get(timeout=0.1)
 
-            def connected():
-                nonlocal connected, workq
-                connected = True
+            def connected(m: SimpleNamespace):
+                m.connected = True
                 window[Id.STATUS].Update("Connesso!")
                 window[Id.TAB1].Update(disabled=False)
                 window[Id.TAB1].Select()
-                workq.put(WorkMessage.HANDSHAKE())
+                m.workq.put(WorkMessage.HANDSHAKE())
 
-            def disconnected():
-                nonlocal connected
-                connected = False
+            def disconnected(m: SimpleNamespace):
+                m.connected = False
                 window[Id.STATUS].Update("Disconnesso!")
+                updateWidgets(m, window)
+                sg.Popup("La connessione e' stata inaspettatamente interrotta",
+                         title="Attenzione")
+
+            def setMode(m: SimpleNamespace, x):
+                m.mode = x
+                selectMode(window, x),
 
             msg.match(
-                connected=connected,
-                disconnected=disconnected,
+                connected=lambda: connected(m),
+                disconnected=lambda: disconnected(m),
                 send=lambda s: window[Id.LOG].update(
                     explicit(s), text_color_for_value="blue", append=True),
                 recv=lambda s: window[Id.LOG].update(
@@ -319,13 +345,22 @@ def mainWindow(workq: Queue, guiq: Queue):
                 log=lambda x, y, z: (window[Id.SN].Update(x), window[
                     Id.LOGHOURS].Update("Ore di lavoro: {}".format(y), window[
                         Id.LOGLOG].update(z))),
-                mode=lambda x: selectMode(window, x),
+                mode=lambda x: setMode(m, x),
             )
 
         except queue.Empty:
             pass
 
-        if connected:
-            pass
+        if m.connected:
+            if time.time() > m.timestamp + 2:
+                if m.tab == 1:
+                    m.workq.put(WorkMessage.GETPOWER())
+
+                if m.mode == 1:
+                    m.workq.put(WorkMessage.GETATT())
+                elif m.mode == 3:
+                    m.workq.put(WorkMessage.GETOUTPUT())
+
+                m.timestamp = time.time()
 
     window.close()

@@ -11,8 +11,10 @@ def parseSerialNumber(string):
     else:
         return None
 
+
 def parsePar(string):
     return parse("PAR,{},Wf,{},Wr,{},C\r\n", string)
+
 
 class Command(ABC):
     def __init__(self, hidden=True):
@@ -81,7 +83,7 @@ class CmdGetMode(Command):
 
     def parseResponse(self, response: str) -> bool:
         if response.startswith("MODE,") and response.endswith("\r\n"):
-        #if res := parse("MODE,{:d}\r\n", response):
+            #if res := parse("MODE,{:d}\r\n", response):
             self.mode = int(response.replace("MODE,", "").replace("\r\n", ""))
         else:
             self._error = True
@@ -130,14 +132,6 @@ class CmdGetLog(Command):
         #TODO: questa istruzione ogni tanto causa un errore
         res = parse("S/N,{:d}\r\nTIME,{:x}\r\n{}\r\n",
                     "S/N,00.00,\r\nTIME,0x1400\r\nLOG\r\n")  # response)
-
-        if len(res.fixed) == 3:
-            self.serialNumber = str(res[0])
-            self.lifetimes = int(res[1])
-            self.log = str(res[2])
-        else:
-            self._error = True
-        return True
 
     def result(self):
         return GuiMessage.LOG(self.serialNumber, self.lifetimes, self.log)
@@ -190,10 +184,9 @@ class CmdGetAttenuation(Command):
         return "Read_ATT"
 
     def parseResponse(self, response: str) -> bool:
-        res = parse("ATT,{:F},dB\r\n", response)
-
-        if len(res.fixed) == 1:
-            self.att = float(res.fixed[0])
+        if response.startswith("ATT,") and response.endswith(",dB\r\n"):
+            self.att = float(
+                response.replace("ATT,", "").replace(",dB\r\n", ""))
         else:
             self._error = True
         return True
@@ -230,10 +223,8 @@ class CmdGetOutput(Command):
         return "Read_TOP"
 
     def parseResponse(self, response: str) -> bool:
-        res = parse("TOP,{:d},W\r\n", response)
-
-        if len(res.fixed) == 1:
-            self.pow = int(res.fixed[0])
+        if response.startswith("TOP,") and response.endswith(",W\r\n"):
+            self.pow = int(response.replace("TOP,", "").replace(",W\r\n", ""))
         else:
             self._error = True
         return True
@@ -251,6 +242,7 @@ class CmdSetMode(CmdSet):
     def commandString(self) -> str:
         return "Set_MODE,{}".format(self.mode)
 
+
 class CmdSetFrequency(CmdSet):
     def __init__(self, freq, hidden=True):
         super().__init__(hidden)
@@ -259,7 +251,6 @@ class CmdSetFrequency(CmdSet):
 
     def commandString(self) -> str:
         return "Set_FRQ,{}".format(self.freq)
-
 
 
 class CmdAny(Command):

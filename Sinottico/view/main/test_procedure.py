@@ -5,16 +5,13 @@ import time
 from openpyxl import Workbook, load_workbook
 import os
 import datetime
+from types import SimpleNamespace
 
 from .elements import Id
-from ..delayPopup import delayPopup
-from ..yesNoPopup import yesNoPopup
-from ..adjustPopup import adjustPopup
-from ..popupTimedCancel import popupTimedCancel
+from ..popups import *
 from ...model import WorkMessage
 
 TMARGIN = 5
-
 
 def saveData(wb, data1, data2, destination, serial, ver):
     cellId = lambda x, y: "{}{}".format(chr(y), x)
@@ -45,11 +42,11 @@ def saveData(wb, data1, data2, destination, serial, ver):
     wb.save(filename=destination)
 
 
-def sendCommand(msg, w, workq, guiq):
-    workq.put(msg)
+def sendCommand(msg, m : SimpleNamespace, w):
+    m.workq.put(msg)
 
     while True:
-        msg = guiq.get()
+        msg = m.guiq.get()
         try:
             res = msg.recv()
             w[Id.LOGAUTO].Update(res,
@@ -76,18 +73,17 @@ def sendCommand(msg, w, workq, guiq):
 
         try:
             res = msg.disconnected()
-            guiq.put(msg)
+            m.guiq.put(msg)
             w.Refresh()
             return None
         except AttributeError:
             pass
 
 
-def automatedTestProcedure(w, workq, guiq, template, destination):
-    def readParameters(t, w, workq, guiq):
+def automatedTestProcedure(m, w, template, destination):
+    def readParameters(t, m, w):
         while True:
-            if res := sendCommand(WorkMessage.SEND("Read_PAR"), w, workq,
-                                  guiq):
+            if res := sendCommand(WorkMessage.SEND("Read_PAR"), m, w):
                 try:
                     _, _, temp = parse.parse("PAR,{},Wf,{},Wr,{},C\r\n", res)
                     temp = float(temp)
@@ -100,7 +96,8 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
                             "Attenzione!",
                             "Mantenere il dispositivo alla temperatura di {:.2f} C!"
                             .format(t),
-                            10, key="Interrompi") == "Interrompi":
+                            10,
+                            key="Interrompi") == "Interrompi":
                         w[Id.STATUS].Update("Procedura interrotta")
                         return False
                 else:
@@ -109,7 +106,7 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
                 w[Id.STATUS].Update("Errore di comunicazione!")
                 return False
 
-        if res := sendCommand(WorkMessage.SEND("Read_ADC"), w, workq, guiq):
+        if res := sendCommand(WorkMessage.SEND("Read_ADC"), m, w):
             try:
                 adcc, adcf, adcr, adct, adcp = parse.parse(
                     "{:d},{:d},{:d},{:d},{:d}\r\n", res)
@@ -121,7 +118,7 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
 
         return (adcc, adcf, adcr, adct)
 
-    def firstTest(temperature, w, workq, guiq, data):
+    def firstTest(temperature, m, w, data):
         attenuation = 32
 
         if not sg.Popup(
@@ -133,13 +130,17 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
             return False
 
         while attenuation >= 0:
+            if temperature in data.keys() and attenuation in data[temperature].keys():
+                attenuation -= 1
+                continue
+
             if not sendCommand(
-                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), w,
-                    workq, guiq):
+                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m,
+                    w):
                 w[Id.STATUS].Update("Errore di comunicazione!")
                 return False
 
-            if readings := readParameters(temperature, w, workq, guiq):
+            if readings := readParameters(temperature, m, w):
                 if not temperature in data.keys():
                     data[temperature] = {}
 
@@ -157,13 +158,17 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
 
         return True
 
-    def secondTest(temperature, w, workq, guiq, data):
+    def secondTest(temperature, m, w, data):
         attenuation = 32
 
         while attenuation >= 0:
+            if temperature in data.keys() and attenuation in data[temperature].keys():
+                    attenuation -= 1
+                    continue
+
             if not sendCommand(
-                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), w,
-                    workq, guiq):
+                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m,
+                    w):
                 w[Id.STATUS].Update("Errore di comunicazione!")
                 return False
 
@@ -178,7 +183,7 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
                 w[Id.STATUS].Update("Procedura interrotta!")
                 return False
 
-            if values := readParameters(temperature, w, workq, guiq):
+            if values := readParameters(temperature, m, w):
                 if not temperature in data.keys():
                     data[temperature] = {}
 
@@ -194,17 +199,22 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
 
     wb = load_workbook(template)
     ws = wb.active
-    data1 = {}
-    data2 = {}
+
+    if m.collectedData:
+        data1, data2 = m.collectedData
+    else:
+        data1 = {}
+        data2 = {}
+        m.collectedData = (data1, data2)
 
     w[Id.STATUS].Update(
         "Procedura di acquisizione automatica dei dati in corso...")
 
-    if not sendCommand(WorkMessage.SEND("Set_FRQ,2450000"), w, workq, guiq):
+    if not sendCommand(WorkMessage.SEND("Set_FRQ,2450000"), m, w):
         w[Id.STATUS].Update("Errore di comunicazione!")
         return
 
-    if sn := sendCommand(WorkMessage.SEND("Read_SN"), w, workq, guiq):
+    if sn := sendCommand(WorkMessage.SEND("Read_SN"), m, w):
         serialNumber = parse.parse("S/N,{}\r\n", sn)
         if not serialNumber:
             w[Id.STATUS].Update("Errore di comunicazione!")
@@ -213,28 +223,28 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
         w[Id.STATUS].Update("Errore di comunicazione!")
         return
 
-    if sw := sendCommand(WorkMessage.SEND("Read_REV"), w, workq, guiq):
+    if sw := sendCommand(WorkMessage.SEND("Read_REV"), m, w):
         swVer = sw.split('\r\n')[1].replace("FW Ver. ", '')
     else:
         w[Id.STATUS].Update("Errore di comunicazione!")
         return
 
-    if not sendCommand(WorkMessage.SEND("Set_MODE,0"), w, workq, guiq):
+    if not sendCommand(WorkMessage.SEND("Set_MODE,0"), m, w):
         return
 
-    if not firstTest(25, w, workq, guiq, data1):
+    if not firstTest(25, m, w, data1):
         return
 
-    if not secondTest(25, w, workq, guiq, data2):
+    if not secondTest(25, m, w, data2):
         return
 
-    if not firstTest(45, w, workq, guiq, data1):
+    if not firstTest(45, m, w, data1):
         return
 
-    if not secondTest(45, w, workq, guiq, data2):
+    if not secondTest(45, m, w, data2):
         return
 
-    if not sendCommand(WorkMessage.SEND("Set_ATT,32.00"), w, workq, guiq):
+    if not sendCommand(WorkMessage.SEND("Set_ATT,32.00"), m, w):
         sg.Popup(
             title="ATTENZIONE!",
             keep_on_top=True,
@@ -247,4 +257,5 @@ def automatedTestProcedure(w, workq, guiq, template, destination):
                  os.path.join(destination, os.path.basename(template)),
                  serialNumber, swVer)
 
+    m.collectedData = None
     w[Id.STATUS].Update("Procedura terminata!")

@@ -41,4 +41,5 @@ class Id(Enum):
     SWR = auto()
     LOGAUTO = auto()
     AUTOTEST = auto()
+    RETRYAUTOTEST = auto()
     K = auto()

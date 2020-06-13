@@ -31,10 +31,8 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
     config: SerialConfig = SerialConfig()
     currentCmd = None
     error: bool = False
-    timestamp = 0
     lastmsgts = 0
 
-    selectedTab: int = 0
     mode: int = 0
 
     while True:
@@ -42,7 +40,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
             msg: WorkMessage = workq.get(timeout=0.1)
 
             def newPort(c: SerialConfig):
-                nonlocal port, cmdq, guiq, timestamp
+                nonlocal port, cmdq, guiq
                 clearq(cmdq)
                 if c.port:
                     config = c
@@ -80,10 +78,6 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 cmdq.put(CmdGetSerialNumber())
                 cmdq.put(CmdGetRevision())
 
-            def setTab(x):
-                nonlocal selectedTab
-                selectedTab = x
-
             def setMode(cmdq, x):
                 nonlocal mode
                 mode = x
@@ -91,7 +85,6 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
 
                 if x == 0:
                     cmdq.put(CmdSetAttenuation(32.00))
-                    print("att")
                     cmdq.put(CmdGetAttenuation())
                 elif x == 2:
                     cmdq.put(CmdSetOutput(0))
@@ -105,7 +98,6 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
             def handshake(cmdq):
                 cmdq.put(CmdSetMode(0))
                 cmdq.put(CmdSetAttenuation(32.00))
-                print("att2")
                 cmdq.put(CmdGetAttenuation())
                 cmdq.put(CmdSetOutput(0))
                 cmdq.put(CmdGetOutput())
@@ -119,11 +111,13 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 getinfo=getInfo,
                 mode=lambda x: setMode(cmdq, x),
                 att=lambda x: cmdq.put(CmdSetAttenuation(x)),
+                getatt=lambda: cmdq.put(CmdGetAttenuation()),
                 output=lambda x: cmdq.put(CmdSetOutput(x)),
+                getoutput=lambda: cmdq.put(CmdGetOutput()),
                 log=getLog,
-                selectedTab=setTab,
                 setfreq=lambda x: cmdq.put(CmdSetFrequency(x, hidden=False)),
                 handshake=lambda: handshake(cmdq),
+                getpower=lambda: cmdq.put(CmdGetPower()),
             )
         except queue.Empty:
             pass
@@ -188,15 +182,3 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
 
             except queue.Empty:
                 currentCmd = None
-
-        #TODO: sposta questi messaggi nella view
-        if elapsed(timestamp, 2) and not error:
-            if selectedTab == 1:
-                cmdq.put(CmdGetPower())
-
-            if mode == 1:
-                cmdq.put(CmdGetAttenuation())
-            elif mode == 3:
-                cmdq.put(CmdGetOutput())
-
-            timestamp = time.time()

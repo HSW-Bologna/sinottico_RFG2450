@@ -36,11 +36,13 @@ class WorkMessage:
     NEWPORT: Case[SerialConfig]
     SEND: Case[str]
     GETINFO: Case
+    GETPOWER: Case
     MODE: Case[int]
     ATT: Case[float]
+    GETATT: Case
     OUTPUT: Case[int]
+    GETOUTPUT: Case
     LOG: Case
-    SELECTEDTAB: Case[int]
     SETFREQ: Case[int]
     HANDSHAKE: Case
 
