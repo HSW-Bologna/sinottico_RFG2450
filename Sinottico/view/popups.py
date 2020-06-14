@@ -54,14 +54,14 @@ def adjustPopup(value):
         if event in (None, "OK"):
             window.close()
             return float(window["T"].Get())
-        elif event in ["-", "Down:116", "minus:20"]:
+        elif event in ["-", "Down:40", "Down:116", "minus:20"] or event.startswith("Down"):
             x = float(values["T"])
             s = values["S"]
             if x - s >= 0:
                 window["T"].Update("{:.2f}".format(x - s))
             else:
                 window["T"].Update("{:.2f}".format(0.))
-        elif event in ["+", "Up:111", "plus:21"]:
+        elif event in ["+", "Up:111", "Up:38", "plus:21"] or event.startswith("Up"):
             x = float(values["T"])
             s = values["S"]
             window["T"].Update("{:.2f}".format(x + s))
