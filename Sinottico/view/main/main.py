@@ -217,7 +217,7 @@ def mainWindow(workq: Queue, guiq: Queue):
                               enable_events=True)
               ],
               [
-                  sg.Text("Selezionare una porta e connetersi",
+                  sg.Text("Selezionare una porta e connettersi",
                           key=Id.STATUS,
                           size=(64, 1))
               ]]
