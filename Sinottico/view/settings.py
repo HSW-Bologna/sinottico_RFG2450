@@ -1,6 +1,6 @@
 from enum import Enum
 import PySimpleGUI as sg # type: ignore
-from ..serialutils import serialPorts
+from ..utils.serialutils import serialPorts
 from ..model import *
 
 class Id(Enum):

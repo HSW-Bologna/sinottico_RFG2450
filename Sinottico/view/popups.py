@@ -45,6 +45,19 @@ def delayPopup(delay):
         window.close()
 
 
+def validate_popup_adjustment(value):
+    newvalue = re.sub("[^0-9.]", "", values[event])
+    try:
+        fvalue = float(newvalue)
+    except ValueError:
+        return False
+
+    fvalue = round(fvalue, .1)
+    if fvalue > 500 or fvalue < .5:
+        return False
+
+    return fvalue
+
 def adjustPopup(value):
     oldvalue = str(value)
     layout = [[sg.Text("Compensare il valore rilevato:")],
@@ -71,28 +84,26 @@ def adjustPopup(value):
     while True:
         event, values = window.Read()
 
-        try:
-            if event in (None, "OK"):
-                window.close()
-                return float(window["T"].Get())
-            elif event == "T":
-                newvalue = re.sub("[^0-9]", "", values[event])
-                fvalue = float(newvalue)
+        if event in (None, "OK"):
+            window.close()
+            return float(window["T"].Get())
+        elif event == "T":
+            if newvalue := validate_popup_adjustment(values[event])
                 window["T"].Update(newvalue)
                 oldvalue = newvalue
-            elif event in ["-", "Down:40", "Down:116", "minus:20"] or event.startswith("Down"):
-                x = float(values["T"])
-                s = values["S"]
-                if x - s >= 0:
-                    window["T"].Update("{:.2f}".format(x - s))
-                else:
-                    window["T"].Update("{:.2f}".format(0.))
-            elif event in ["+", "Up:111", "Up:38", "plus:21"] or event.startswith("Up"):
-                x = float(values["T"])
-                s = values["S"]
-                window["T"].Update("{:.2f}".format(x + s))
-        except ValueError:
-            window["T"].Update(oldvalue)
+            else:
+                window["T"].Update(oldvalue)
+        elif event in ["-", "Down:40", "Down:116", "minus:20"] or event.startswith("Down"):
+            x = float(values["T"])
+            s = values["S"]
+            if x - s >= 0:
+                window["T"].Update("{:.2f}".format(x - s))
+            else:
+                window["T"].Update("{:.2f}".format(0.))
+        elif event in ["+", "Up:111", "Up:38", "plus:21"] or event.startswith("Up"):
+            x = float(values["T"])
+            s = values["S"]
+            window["T"].Update("{:.2f}".format(x + s))
 
 
 def yesNoPopup(text):

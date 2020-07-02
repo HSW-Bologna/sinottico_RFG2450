@@ -7,7 +7,7 @@ from enum import Enum
 import time
 from typing import List
 
-from ..serialutils import *
+from ..utils.serialutils import *
 from ..resources import resourcePath
 from ..model import *
 from .commands import *

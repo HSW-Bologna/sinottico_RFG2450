@@ -10,18 +10,18 @@ from types import SimpleNamespace
 from .elements import Id
 from ..popups import *
 from ...model import WorkMessage
+from ...utils.excelabstraction import CustomExcelWorkbookBecauseWindowsSucks
 
 TMARGIN = 5
 ATTENUATION = 32
 
 def saveData(wb, data1, data2, destination, serial, ver):
     cellId = lambda x, y: "{}{}".format(chr(y), x)
-    ws = wb.active
 
-    ws['C3'] = serial
-    ws['C4'] = datetime.date.today().strftime("%d/%m/%Y")
-    ws['C5'] = datetime.datetime.now().strftime("%I:%M:%S %p")
-    ws['C6'] = ver
+    wb['C3'] = serial
+    wb['C4'] = datetime.date.today().strftime("%d/%m/%Y")
+    wb['C5'] = datetime.datetime.now().strftime("%I:%M:%S %p")
+    wb['C6'] = ver
 
     for i in range(2):
         d = [data1, data2][i]
@@ -34,13 +34,13 @@ def saveData(wb, data1, data2, destination, serial, ver):
                 scol = {25: 66, 45: 70}[t]
 
             for k in d[t].keys():
-                ws[cellId(srow, 65)] = k
-                ws[cellId(srow, scol)] = d[t][k][0]
-                ws[cellId(srow, scol + 1)] = d[t][k][1]
-                ws[cellId(srow, scol + 2)] = d[t][k][2]
+                wb[cellId(srow, 65)] = k
+                wb[cellId(srow, scol)] = d[t][k][0]
+                wb[cellId(srow, scol + 1)] = d[t][k][1]
+                wb[cellId(srow, scol + 2)] = d[t][k][2]
                 srow += 1
 
-    wb.save(filename=destination)
+    wb.save(destination)
 
 
 def sendCommand(msg, m : SimpleNamespace, w):
@@ -147,7 +147,8 @@ def automatedTestProcedure(m, w, template, destination):
 
                 _, values = w.Read(timeout=0)
                 k = float(values[Id.K])
-                adjusted = adjustPopup(readings[0] * k)
+                adjusted = .5 * ((readings[0] * k)/.5)
+                adjusted = adjustPopup(adjusted)
 
                 data[temperature][attenuation] = [
                     readings[1], readings[3], adjusted
@@ -174,7 +175,7 @@ def automatedTestProcedure(m, w, template, destination):
                 return False
 
             if attenuation != ATTENUATION:
-                delayPopup(10)
+                delayPopup(0.5)
 
             if not sg.Popup(
                     "Inserire correttamente tappo in corto e temperatura impostata a {:.2f} C"
@@ -198,8 +199,7 @@ def automatedTestProcedure(m, w, template, destination):
 
         return True
 
-    wb = load_workbook(template)
-    ws = wb.active
+    wb = CustomExcelWorkbookBecauseWindowsSucks(template)
 
     if m.collectedData:
         data1, data2 = m.collectedData
