@@ -12,6 +12,7 @@ from ..popups import *
 from ...model import WorkMessage
 
 TMARGIN = 5
+ATTENUATION = 32
 
 def saveData(wb, data1, data2, destination, serial, ver):
     cellId = lambda x, y: "{}{}".format(chr(y), x)
@@ -119,7 +120,7 @@ def automatedTestProcedure(m, w, template, destination):
         return (adcc, adcf, adcr, adct)
 
     def firstTest(temperature, m, w, data):
-        attenuation = 32
+        attenuation = ATTENUATION
 
         if not sg.Popup(
                 "Verifica carico 500HM correttamente inserito e temperatura impostata {:.2f} C"
@@ -159,7 +160,7 @@ def automatedTestProcedure(m, w, template, destination):
         return True
 
     def secondTest(temperature, m, w, data):
-        attenuation = 32
+        attenuation = ATTENUATION
 
         while attenuation >= 0:
             if temperature in data.keys() and attenuation in data[temperature].keys():
@@ -172,7 +173,7 @@ def automatedTestProcedure(m, w, template, destination):
                 w[Id.STATUS].Update("Errore di comunicazione!")
                 return False
 
-            if attenuation != 32:
+            if attenuation != ATTENUATION:
                 delayPopup(10)
 
             if not sg.Popup(
@@ -215,8 +216,9 @@ def automatedTestProcedure(m, w, template, destination):
         return
 
     if sn := sendCommand(WorkMessage.SEND("Read_SN"), m, w):
-        serialNumber = parse.parse("S/N,{}\r\n", sn)
-        if not serialNumber:
+        if res :=  parse.parse("S/N,{}\r\n", sn):
+            serialNumber = res.fixed[0]
+        else:
             w[Id.STATUS].Update("Errore di comunicazione!")
             return
     else:
