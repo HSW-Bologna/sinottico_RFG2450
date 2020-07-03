@@ -35,7 +35,7 @@ def delayPopup(delay):
 
         while time.time() - start < delay:
             counter = (counter + 1) % 6
-            event, _ = window.Read(timeout=500)
+            event, _ = window.Read(timeout=200)
 
             if event == None:
                 break

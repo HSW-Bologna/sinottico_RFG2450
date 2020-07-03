@@ -40,7 +40,7 @@ def saveData(wb, data1, data2, destination, serial, ver):
                 wb[cellId(srow, scol + 1)] = d[t][k][1]
                 wb[cellId(srow, scol + 2)] = d[t][k][2]
                 srow += 1
-
+    
     wb.save(destination)
 
 
@@ -195,7 +195,7 @@ def automatedTestProcedure(m, w, template, destination):
                 if values := readParameters(temperature, m, w):
                     _, adcf, adcr, _ = values
 
-                    if adcf == 0 and adcr == 0:
+                    if False and adcf == 0 and adcr == 0:
                         if sg.PopupOKCancel(
                                 "Il dispositivo e' in protezione; riprovare?",
                                 keep_on_top=True,
@@ -281,7 +281,7 @@ def automatedTestProcedure(m, w, template, destination):
     if res := yesNoPopup("Procedura terminata. Salvare i dati?"):
         template = "{}_{}.xlsx".format(
             os.path.basename(template).replace(".xlsx", ""), serialNumber)
-        saveData(wb, data1, data2, os.path.join(destination, template),
+        saveData(wb, data1, data2, os.path.join(os.path.abspath(destination), template),
                  serialNumber, swVer)
 
     m.collectedData = None
