@@ -45,26 +45,56 @@ def delayPopup(delay):
         window.close()
 
 
-def validate_popup_adjustment(value):
-    newvalue = re.sub("[^0-9.]", "", values[event])
+def validate_float_strict(value, element):
+    newvalue = re.sub("[^0-9.]", "", value)
+    if len(newvalue) == 0:
+        return 0
+
     try:
         fvalue = float(newvalue)
     except ValueError:
-        return False
+        return None
 
-    fvalue = round(fvalue, .1)
+    fvalue = round(fvalue, 1)
     if fvalue > 500 or fvalue < .5:
-        return False
+        return None
+
+    try:
+        if fvalue != float(value):
+            element.Update(fvalue)
+    except ValueError:
+        element.Update(fvalue)
+
+    return fvalue
+
+
+def validate_float_lask(value, element):
+    newvalue = re.sub("[^0-9.]", "", value)
+    if len(newvalue) == 0:
+        return 0
+
+    try:
+        fvalue = float(newvalue)
+    except ValueError:
+        return None
+
+    try:
+        if fvalue != float(value):
+            element.Update(fvalue)
+    except ValueError:
+        element.Update(fvalue)
 
     return fvalue
 
 def adjustPopup(value):
     oldvalue = str(value)
+    oldsvalue = str(0.5)
     layout = [[sg.Text("Compensare il valore rilevato:")],
               [
                   sg.Spin([x / 10. for x in range(5, 100, 5)],
                           initial_value=0.5,
                           size=(3, 1),
+                          change_submits=True,
                           key="S"),
                   sg.Text("Step")
               ],
@@ -84,25 +114,33 @@ def adjustPopup(value):
     while True:
         event, values = window.Read()
 
+        if (newvalue := validate_float_lask(window["S"].Get(),
+                                              window["S"])) != None:
+            oldsvalue = newvalue
+        else:
+            window["S"].Update(oldsvalue)
+
         if event in (None, "OK"):
             window.close()
             return float(window["T"].Get())
         elif event == "T":
-            if newvalue := validate_popup_adjustment(values[event])
-                window["T"].Update(newvalue)
+            if (newvalue := validate_float_strict(values[event],
+                                                      window["T"])) != None:
                 oldvalue = newvalue
             else:
                 window["T"].Update(oldvalue)
-        elif event in ["-", "Down:40", "Down:116", "minus:20"] or event.startswith("Down"):
+        elif event in ["-", "Down:40", "Down:116", "minus:20"
+                       ] or event.startswith("Down"):
             x = float(values["T"])
             s = values["S"]
             if x - s >= 0:
                 window["T"].Update("{:.2f}".format(x - s))
             else:
                 window["T"].Update("{:.2f}".format(0.))
-        elif event in ["+", "Up:111", "Up:38", "plus:21"] or event.startswith("Up"):
+        elif event in ["+", "Up:111", "Up:38", "plus:21"
+                       ] or event.startswith("Up"):
             x = float(values["T"])
-            s = values["S"]
+            s = float(values["S"])
             window["T"].Update("{:.2f}".format(x + s))
 
 

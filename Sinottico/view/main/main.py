@@ -5,6 +5,7 @@ import time
 import PySimpleGUI as sg  # type: ignore
 from types import SimpleNamespace
 
+from ..popups import validate_float_lask
 from ..settings import settingsWindow
 from ...resources import resourcePath
 from ...model import *
@@ -20,10 +21,16 @@ def explicit(s):
 
 def updateWidgets(m, window):
     [
-        window[x].Update(disabled=not m.connected) for x in
-        [Id.SEND, Id.INFO, Id.TAB1, Id.TAB2, Id.TAB3, Id.TAB4, Id.TAB5, Id.AUTOTEST, Id.RETRYAUTOTEST]
+        window[x].Update(disabled=not m.connected) for x in [
+            Id.SEND, Id.INFO, Id.TAB1, Id.TAB2, Id.TAB3, Id.TAB4, Id.TAB5,
+            Id.AUTOTEST, Id.RETRYAUTOTEST
+        ]
     ]
-
+    [
+        window[x].Update(disabled=not (
+            window[Id.TEMPLATE].Get() and window[Id.DESTINATION].Get()))
+        for x in [Id.AUTOTEST, Id.RETRYAUTOTEST]
+    ]
 
 
 def calculateVSWR(pref, pfwr):
@@ -58,6 +65,7 @@ def selectMode(w, mode):
 
 def mainWindow(workq: Queue, guiq: Queue):
     sg.theme("DefaultNoMoreNagging")
+    oldkvalue = ""
     m: SimpleNamespace = SimpleNamespace(connected=False,
                                          mode=0,
                                          timestamp=0,
@@ -165,6 +173,7 @@ def mainWindow(workq: Queue, guiq: Queue):
         [
             sg.Spin(["{:.2f}".format(x / 100.) for x in range(5, 155, 5)],
                     initial_value="1.00",
+                    change_submits=True,
                     size=(5, 1),
                     key=Id.K),
             sg.Text("Coefficiente K")
@@ -223,7 +232,7 @@ def mainWindow(workq: Queue, guiq: Queue):
               ]]
 
     # Create the Window
-    window = sg.Window('Collaudo RFG2450', layout, finalize=True)
+    window = sg.Window('Collaudo RFG2450', layout, finalize=True, return_keyboard_events=True)
 
     config = SerialConfig()
 
@@ -241,6 +250,12 @@ def mainWindow(workq: Queue, guiq: Queue):
         window[Id.RETRYAUTOTEST].Update(disabled=(not m.connected) or (
             not (values[Id.TEMPLATE] and values[Id.DESTINATION]))
                                         or not m.collectedData)
+
+        if (newvalue := validate_float_lask(window[Id.K].Get(),
+                                            window[Id.K])) != None:
+            oldkvalue = newvalue
+        else:
+            window[Id.K].Update(oldkvalue)
 
         if event == Id.SETTINGS:
             config = settingsWindow(config)
@@ -294,8 +309,7 @@ def mainWindow(workq: Queue, guiq: Queue):
                 m.collectedData = None
             m.data = startAutomatedTest(m, window, values[Id.TEMPLATE],
                                         values[Id.DESTINATION])
-        else:
-            print(event)
+                                        
 
         try:
             msg: GuiMessage = guiq.get(timeout=0.1)

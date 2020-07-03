@@ -15,6 +15,7 @@ from ...utils.excelabstraction import CustomExcelWorkbookBecauseWindowsSucks
 TMARGIN = 5
 ATTENUATION = 32
 
+
 def saveData(wb, data1, data2, destination, serial, ver):
     cellId = lambda x, y: "{}{}".format(chr(y), x)
 
@@ -43,7 +44,7 @@ def saveData(wb, data1, data2, destination, serial, ver):
     wb.save(destination)
 
 
-def sendCommand(msg, m : SimpleNamespace, w):
+def sendCommand(msg, m: SimpleNamespace, w):
     m.workq.put(msg)
 
     while True:
@@ -131,7 +132,8 @@ def automatedTestProcedure(m, w, template, destination):
             return False
 
         while attenuation >= 0:
-            if temperature in data.keys() and attenuation in data[temperature].keys():
+            if temperature in data.keys(
+            ) and attenuation in data[temperature].keys():
                 attenuation -= 1
                 continue
 
@@ -147,7 +149,7 @@ def automatedTestProcedure(m, w, template, destination):
 
                 _, values = w.Read(timeout=0)
                 k = float(values[Id.K])
-                adjusted = .5 * ((readings[0] * k)/.5)
+                adjusted = .5 * ((readings[0] * k) / .5)
                 adjusted = adjustPopup(adjusted)
 
                 data[temperature][attenuation] = [
@@ -164,9 +166,10 @@ def automatedTestProcedure(m, w, template, destination):
         attenuation = ATTENUATION
 
         while attenuation >= 0:
-            if temperature in data.keys() and attenuation in data[temperature].keys():
-                    attenuation -= 1
-                    continue
+            if temperature in data.keys(
+            ) and attenuation in data[temperature].keys():
+                attenuation -= 1
+                continue
 
             if not sendCommand(
                     WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m,
@@ -176,24 +179,40 @@ def automatedTestProcedure(m, w, template, destination):
 
             if attenuation != ATTENUATION:
                 delayPopup(0.5)
-
-            if not sg.Popup(
+            '''if not sg.Popup(
                     "Inserire correttamente tappo in corto e temperatura impostata a {:.2f} C"
                     .format(temperature),
                     keep_on_top=True,
                     title="Attenzione!"):
                 w[Id.STATUS].Update("Procedura interrotta!")
-                return False
+                return False'''
 
-            if values := readParameters(temperature, m, w):
-                if not temperature in data.keys():
-                    data[temperature] = {}
+            delay = 0
+            while True:
+                time.sleep(delay)
+                delay = 0.5
 
-                data[temperature][attenuation] = [
-                    values[1], values[2], values[3]
-                ]
-            else:
-                return False
+                if values := readParameters(temperature, m, w):
+                    _, adcf, adcr, _ = values
+
+                    if adcf == 0 and adcr == 0:
+                        if sg.PopupOKCancel(
+                                "Il dispositivo e' in protezione; riprovare?",
+                                keep_on_top=True,
+                                title="Attenzione!") == "OK":
+                            continue
+                        else:
+                            return False
+
+                    if not temperature in data.keys():
+                        data[temperature] = {}
+
+                    data[temperature][attenuation] = [
+                        values[1], values[2], values[3]
+                    ]
+                    break
+                else:
+                    return False
 
             attenuation -= 1
 
@@ -216,7 +235,7 @@ def automatedTestProcedure(m, w, template, destination):
         return
 
     if sn := sendCommand(WorkMessage.SEND("Read_SN"), m, w):
-        if res :=  parse.parse("S/N,{}\r\n", sn):
+        if res := parse.parse("S/N,{}\r\n", sn):
             serialNumber = res.fixed[0]
         else:
             w[Id.STATUS].Update("Errore di comunicazione!")
@@ -232,18 +251,23 @@ def automatedTestProcedure(m, w, template, destination):
         return
 
     if not sendCommand(WorkMessage.SEND("Set_MODE,0"), m, w):
+        w[Id.STATUS].Update("Errore di comunicazione!")
         return
 
     if not firstTest(25, m, w, data1):
+        w[Id.STATUS].Update("Procedura interrotta!")
         return
 
     if not secondTest(25, m, w, data2):
+        w[Id.STATUS].Update("Procedura interrotta!")
         return
 
     if not firstTest(45, m, w, data1):
+        w[Id.STATUS].Update("Procedura interrotta!")
         return
 
     if not secondTest(45, m, w, data2):
+        w[Id.STATUS].Update("Procedura interrotta!")
         return
 
     if not sendCommand(WorkMessage.SEND("Set_ATT,32.00"), m, w):
@@ -255,8 +279,9 @@ def automatedTestProcedure(m, w, template, destination):
         return
 
     if res := yesNoPopup("Procedura terminata. Salvare i dati?"):
-        saveData(wb, data1, data2,
-                 os.path.join(destination, os.path.basename(template)),
+        template = "{}_{}.xlsx".format(
+            os.path.basename(template).replace(".xlsx", ""), serialNumber)
+        saveData(wb, data1, data2, os.path.join(destination, template),
                  serialNumber, swVer)
 
     m.collectedData = None
