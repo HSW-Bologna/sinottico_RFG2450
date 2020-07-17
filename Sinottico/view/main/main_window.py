@@ -19,17 +19,19 @@ def explicit(s):
     return s.replace('\r', '\\r').replace('\n', '\\n\n')
 
 
-def updateWidgets(m, window):
+def updateWidgets(m, window, c, carduino):
+    window[Id.CONNECT].Update(disabled=not c.port)
+    window[Id.CONNECT_ARDUINO].Update(disabled=not carduino.port)
     [
         window[x].Update(disabled=not m.connected) for x in [
             Id.SEND, Id.INFO, Id.TAB1, Id.TAB2, Id.TAB3, Id.TAB4, Id.TAB5,
-            Id.AUTOTEST, Id.RETRYAUTOTEST
+            Id.AUTOTEST
         ]
     ]
     [
         window[x].Update(disabled=not (
             window[Id.TEMPLATE].Get() and window[Id.DESTINATION].Get()))
-        for x in [Id.AUTOTEST, Id.RETRYAUTOTEST]
+        for x in [Id.AUTOTEST]
     ]
 
 
@@ -45,13 +47,13 @@ def calculateVSWR(pref, pfwr):
 
 def startAutomatedTest(m, w, template, destination):
     elements = [
-        Id.SETTINGS, Id.CONNECT, Id.TAB1, Id.TAB3, Id.TAB4, Id.TAB5,
-        Id.AUTOTEST, Id.RETRYAUTOTEST
+        Id.SETTINGS, Id.CONNECT, Id.CONNECT_ARDUINO, Id.TAB1, Id.TAB3, Id.TAB4,
+        Id.TAB5, Id.AUTOTEST
     ]
     [w[x].Update(disabled=True) for x in elements]
-    data = automatedTestProcedure(m, w, template, destination)
+    w[Id.TAB2].Select()
+    m.data_acquisition = automatedTestProcedure(m, w, template, destination)
     [w[x].Update(disabled=False) for x in elements]
-    return None
 
 
 def selectMode(w, mode):
@@ -63,7 +65,7 @@ def selectMode(w, mode):
     w[Id.MODES].Update(value=revmodes[mode])
 
 
-def mainWindow(workq: Queue, guiq: Queue):
+def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
     sg.theme("DefaultNoMoreNagging")
     oldkvalue = ""
     m: SimpleNamespace = SimpleNamespace(connected=False,
@@ -72,7 +74,11 @@ def mainWindow(workq: Queue, guiq: Queue):
                                          tab=0,
                                          collectedData=None,
                                          workq=workq,
-                                         guiq=guiq)
+                                         ardq=ardq,
+                                         guiq=guiq,
+                                         restart=False,
+                                         arudino_connected=False,
+                                         data_acquisition=False)
 
     tab1 = [
         [
@@ -212,8 +218,17 @@ def mainWindow(workq: Queue, guiq: Queue):
             'Impostazioni',
             key=Id.SETTINGS,
         ),
-        sg.Button('Connetti', key=Id.CONNECT)
+        sg.Button('Connetti', key=Id.CONNECT),
+        sg.Text('RFG2450', key=Id.CONNECT_STATUS1, size=(32, 1)),
     ],
+              [
+                  sg.Button(
+                      'Impostazioni',
+                      key=Id.SETTINGS_ARDUINO,
+                  ),
+                  sg.Button('Connetti', key=Id.CONNECT_ARDUINO),
+                  sg.Text('Arduino', key=Id.CONNECT_STATUS2, size=(32, 1)),
+              ],
               [
                   sg.TabGroup([[
                       sg.Tab("Informazioni", tab1, key=Id.TAB1),
@@ -232,14 +247,17 @@ def mainWindow(workq: Queue, guiq: Queue):
               ]]
 
     # Create the Window
-    window = sg.Window('Collaudo RFG2450', layout, finalize=True, return_keyboard_events=True)
+    window = sg.Window('Collaudo RFG2450',
+                       layout,
+                       finalize=True,
+                       return_keyboard_events=True)
 
     config = SerialConfig()
+    config_arduino = SerialConfig(end="LF")
 
     # Event Loop to process "events" and get the "values" of the inputs
     while True:
-        window[Id.CONNECT].Update(disabled=not config.port)
-        updateWidgets(m, window)
+        updateWidgets(m, window, config, config_arduino)
 
         event, values = window.read(timeout=0.1, timeout_key=Id.TIMEOUT)
         if event in (None, 'Cancel'):  # if user closes window or clicks cancel
@@ -247,9 +265,6 @@ def mainWindow(workq: Queue, guiq: Queue):
 
         window[Id.AUTOTEST].Update(disabled=(not m.connected) or (
             not (values[Id.TEMPLATE] and values[Id.DESTINATION])))
-        window[Id.RETRYAUTOTEST].Update(disabled=(not m.connected) or (
-            not (values[Id.TEMPLATE] and values[Id.DESTINATION]))
-                                        or not m.collectedData)
 
         if (newvalue := validate_float_lask(window[Id.K].Get(),
                                             window[Id.K])) != None:
@@ -257,21 +272,26 @@ def mainWindow(workq: Queue, guiq: Queue):
         else:
             window[Id.K].Update(oldkvalue)
 
-        if event == Id.SETTINGS:
-            config = settingsWindow(config)
-            if config.port:
-                text = "{} {},{}{}{}".format(config.port, config.baud,
-                                             config.data, config.parity[0],
-                                             config.stop)
+        if event in [Id.SETTINGS, Id.SETTINGS_ARDUINO]:
+            c = {
+                Id.SETTINGS: config,
+                Id.SETTINGS_ARDUINO: config_arduino
+            }[event]
+            c.set_to(settingsWindow(c))
+            if c.port:
+                text = "{} {},{}{}{}".format(c.port, c.baud, c.data,
+                                             c.parity[0], c.stop)
             else:
                 text = "Impostazioni"
-            window[Id.SETTINGS].Update(text=text)
+            window[event].Update(text=text)
 
             while window.read(timeout=0,
                               timeout_key=Id.TIMEOUT)[0] != Id.TIMEOUT:
                 pass
         elif event == Id.CONNECT:
             m.workq.put(WorkMessage.NEWPORT(config))
+        elif event == Id.CONNECT_ARDUINO:
+            m.ardq.put(ArduinoMessage.NEWPORT(config_arduino))
         elif event == Id.SEND:
             m.workq.put(WorkMessage.SEND(values[Id.INPUT]))
         elif event == Id.INFO:
@@ -307,24 +327,38 @@ def mainWindow(workq: Queue, guiq: Queue):
         elif event in [Id.AUTOTEST, Id.RETRYAUTOTEST]:
             if event == Id.AUTOTEST:
                 m.collectedData = None
-            m.data = startAutomatedTest(m, window, values[Id.TEMPLATE],
-                                        values[Id.DESTINATION])
-                                        
+            startAutomatedTest(m, window, values[Id.TEMPLATE],
+                               values[Id.DESTINATION])
+
+        if m.restart:
+            m.restart = False
+            startAutomatedTest(m, window, window[Id.TEMPLATE].Get(),
+                               window[Id.DESTINATION].Get())
 
         try:
             msg: GuiMessage = guiq.get(timeout=0.1)
 
-            def connected(m: SimpleNamespace):
+            def connected_rfg(m: SimpleNamespace):
                 m.connected = True
+                window[Id.CONNECT_STATUS1].Update("RFG2450 - Connesso!")
                 window[Id.STATUS].Update("Connesso!")
                 window[Id.TAB1].Update(disabled=False)
                 window[Id.TAB1].Select()
                 m.workq.put(WorkMessage.HANDSHAKE())
 
-            def disconnected(m: SimpleNamespace):
+            def connected_arduino(m: SimpleNamespace):
+                window[Id.CONNECT_STATUS2].Update("Arduino - Connesso!")
+                m.connected_arduino = True
+
+            def disconnected_arduino(m: SimpleNamespace):
+                window[Id.CONNECT_STATUS2].Update("Arduino - Disconnesso!")
+                m.connected_arduino = False
+
+            def disconnected_rfg(m: SimpleNamespace):
                 m.connected = False
                 window[Id.STATUS].Update("Disconnesso!")
-                updateWidgets(m, window)
+                window[Id.CONNECT_STATUS1].Update("RFG2450 - Disconnesso!")
+                updateWidgets(m, window, config, config_arduino)
                 sg.Popup("La connessione e' stata inaspettatamente interrotta",
                          title="Attenzione")
 
@@ -332,9 +366,15 @@ def mainWindow(workq: Queue, guiq: Queue):
                 m.mode = x
                 selectMode(window, x),
 
+            def reconnected(m: SimpleNamespace, window, template, destination):
+                connected(m)
+                m.restart = m.data_acquisition
+
             msg.match(
-                connected=lambda: connected(m),
-                disconnected=lambda: disconnected(m),
+                connected_rfg=lambda: connected_rfg(m),
+                connected_arduino=lambda: connected_arduino(m),
+                disconnected_rfg=lambda: disconnected_rfg(m),
+                disconnected_arduino=lambda: disconnected_arduino(m),
                 send=lambda s: window[Id.LOG].update(
                     explicit(s), text_color_for_value="blue", append=True),
                 recv=lambda s: window[Id.LOG].update(
@@ -350,6 +390,8 @@ def mainWindow(workq: Queue, guiq: Queue):
                              calculateVSWR(float(y), float(x))))),
                 error=lambda: window[Id.STATUS].Update(
                     "Errore di comunicazione!"),
+                error_arduino=lambda: window[Id.CONNECT_STATUS2].Update(
+                    "Errore di comunicazione!"),
                 attenuation=lambda x:
                 (window[Id.ATT].Update("Attenuazione: {}".format(x), window[
                     Id.DIGATT].Update(value=x * 100)), window[Id.ATTLBL].
@@ -360,7 +402,8 @@ def mainWindow(workq: Queue, guiq: Queue):
                     Id.LOGHOURS].Update("Ore di lavoro: {}".format(y), window[
                         Id.LOGLOG].update(z))),
                 mode=lambda x: setMode(m, x),
-            )
+                reconnected=lambda: reconnected(m, window, window[
+                    Id.TEMPLATE].Get(), window[Id.DESTINATION].Get()))
 
         except queue.Empty:
             pass

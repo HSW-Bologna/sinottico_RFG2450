@@ -17,10 +17,11 @@ def parsePar(string):
 
 
 class Command(ABC):
-    def __init__(self, hidden=True):
+    def __init__(self, hidden=True, ending="\r\n"):
         self.start()
         self.hidden = hidden
         self._error = False
+        self._ending = ending
 
     def error(self):
         return self._error
@@ -39,10 +40,28 @@ class Command(ABC):
     def parseResponse(self, response: str) -> bool:
         pass
 
-    @abstractmethod
     def result(self) -> GuiMessage:
-        pass
+        return None
 
+
+class ArduinoTemperature(Command):
+    def __init__(self, temperature, hidden=True, ending='\r\n'):
+        super().__init__(hidden=hidden, ending=ending)
+        self.temperature = temperature
+
+    def commandString(self):
+        return str(self.temperature) + self._ending
+
+    def parseResponse(self, response):
+        if not response.startswith("Aggiornato "):
+            self._error = True
+        try:
+            if int(response.replace("Aggiornato ", "")) != self.temperature:
+                self._error = True
+        except ValueError:
+            self._error = True
+
+        return True
 
 class CmdSet(Command):
     def parseResponse(self, response: str) -> bool:

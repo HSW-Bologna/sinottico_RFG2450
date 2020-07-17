@@ -13,7 +13,7 @@ Una volta scaricata la repository, il programma puo' essere eseguito lanciando l
 
 # TODO
 
-    - Gestire tutte le possibili eccezioni (Per esempio nella procedura automatica se arriva un messaggio malformato)
     - Raccogliere tutte le variabili in delle strutture
     - Smettere di usare implicitamente '\r\n' come fine riga, sfruttare l'opzione configurata
-    - Riunire i popup in un unico file
+    - Focus dei popup quando compaiono
+    - Usare per bene tutti i popup tra una procedura e l'altra

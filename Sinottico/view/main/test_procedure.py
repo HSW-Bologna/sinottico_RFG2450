@@ -40,7 +40,7 @@ def saveData(wb, data1, data2, destination, serial, ver):
                 wb[cellId(srow, scol + 1)] = d[t][k][1]
                 wb[cellId(srow, scol + 2)] = d[t][k][2]
                 srow += 1
-    
+
     wb.save(destination)
 
 
@@ -165,6 +165,14 @@ def automatedTestProcedure(m, w, template, destination):
     def secondTest(temperature, m, w, data):
         attenuation = ATTENUATION
 
+        if not sg.Popup(
+                "Inserire correttamente tappo in corto e temperatura impostata a {:.2f} C"
+                .format(temperature),
+                keep_on_top=True,
+                title="Attenzione!"):
+            w[Id.STATUS].Update("Procedura interrotta!")
+            return False
+
         while attenuation >= 0:
             if temperature in data.keys(
             ) and attenuation in data[temperature].keys():
@@ -179,13 +187,6 @@ def automatedTestProcedure(m, w, template, destination):
 
             if attenuation != ATTENUATION:
                 delayPopup(0.5)
-            '''if not sg.Popup(
-                    "Inserire correttamente tappo in corto e temperatura impostata a {:.2f} C"
-                    .format(temperature),
-                    keep_on_top=True,
-                    title="Attenzione!"):
-                w[Id.STATUS].Update("Procedura interrotta!")
-                return False'''
 
             delay = 0
             while True:
@@ -195,7 +196,7 @@ def automatedTestProcedure(m, w, template, destination):
                 if values := readParameters(temperature, m, w):
                     _, adcf, adcr, _ = values
 
-                    if False and adcf == 0 and adcr == 0:
+                    if adcf == 0 and adcr == 0:
                         if sg.PopupOKCancel(
                                 "Il dispositivo e' in protezione; riprovare?",
                                 keep_on_top=True,
@@ -232,43 +233,43 @@ def automatedTestProcedure(m, w, template, destination):
 
     if not sendCommand(WorkMessage.SEND("Set_FRQ,2450000"), m, w):
         w[Id.STATUS].Update("Errore di comunicazione!")
-        return
+        return True
 
     if sn := sendCommand(WorkMessage.SEND("Read_SN"), m, w):
         if res := parse.parse("S/N,{}\r\n", sn):
             serialNumber = res.fixed[0]
         else:
             w[Id.STATUS].Update("Errore di comunicazione!")
-            return
+            return True
     else:
         w[Id.STATUS].Update("Errore di comunicazione!")
-        return
+        return True
 
     if sw := sendCommand(WorkMessage.SEND("Read_REV"), m, w):
         swVer = sw.split('\r\n')[1].replace("FW Ver. ", '')
     else:
         w[Id.STATUS].Update("Errore di comunicazione!")
-        return
+        return True
 
     if not sendCommand(WorkMessage.SEND("Set_MODE,0"), m, w):
         w[Id.STATUS].Update("Errore di comunicazione!")
-        return
+        return True
 
     if not firstTest(25, m, w, data1):
         w[Id.STATUS].Update("Procedura interrotta!")
-        return
+        return True
 
     if not secondTest(25, m, w, data2):
         w[Id.STATUS].Update("Procedura interrotta!")
-        return
+        return True
 
     if not firstTest(45, m, w, data1):
         w[Id.STATUS].Update("Procedura interrotta!")
-        return
+        return True
 
     if not secondTest(45, m, w, data2):
         w[Id.STATUS].Update("Procedura interrotta!")
-        return
+        return True
 
     if not sendCommand(WorkMessage.SEND("Set_ATT,32.00"), m, w):
         sg.Popup(
@@ -276,13 +277,15 @@ def automatedTestProcedure(m, w, template, destination):
             keep_on_top=True,
             custom_text=
             "NON STACCARE L'ANTENNA SE LA POTENZA EROGATA SUPERA I 5 WATT!")
-        return
+        return True
 
     if res := yesNoPopup("Procedura terminata. Salvare i dati?"):
         template = "{}_{}.xlsx".format(
             os.path.basename(template).replace(".xlsx", ""), serialNumber)
-        saveData(wb, data1, data2, os.path.join(os.path.abspath(destination), template),
+        saveData(wb, data1, data2,
+                 os.path.join(os.path.abspath(destination), template),
                  serialNumber, swVer)
 
     m.collectedData = None
     w[Id.STATUS].Update("Procedura terminata!")
+    return False

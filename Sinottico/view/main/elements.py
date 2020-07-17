@@ -1,12 +1,15 @@
 from enum import Enum, auto
 
+
 class Id(Enum):
     DESTBTN = auto()
     TEMPBTN = auto()
     DESTINATION = auto()
     TEMPLATE = auto()
     CONNECT = auto()
+    CONNECT_ARDUINO = auto()
     SETTINGS = auto()
+    SETTINGS_ARDUINO = auto()
     TIMEOUT = auto()
     SEND = auto()
     END = auto()
@@ -17,6 +20,8 @@ class Id(Enum):
     REVISION = auto()
     MODES = auto()
     STATUS = auto()
+    CONNECT_STATUS1 = auto()
+    CONNECT_STATUS2 = auto()
     DIRPWR = auto()
     REFPWR = auto()
     TEMP = auto()

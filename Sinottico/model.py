@@ -30,6 +30,9 @@ class SerialConfig:
     def endStr(self):
         return self.endBytes().decode()
 
+    def set_to(self, new):
+        self.__init__(new.port, new.baud, new.data, new.stop, new.parity, new.flowctrl, new.end)
+
 
 @adt
 class WorkMessage:
@@ -46,6 +49,11 @@ class WorkMessage:
     SETFREQ: Case[int]
     HANDSHAKE: Case
 
+@adt
+class ArduinoMessage:
+    NEWPORT: Case[SerialConfig]
+    TEMPERATURE: Case[int]
+
 
 @adt
 class GuiMessage:
@@ -55,9 +63,13 @@ class GuiMessage:
     REVISION: Case[str]
     POWER: Case[int, int, int]
     ERROR: Case
-    CONNECTED: Case
+    ERROR_ARDUINO: Case
+    CONNECTED_RFG: Case
+    CONNECTED_ARDUINO: Case
     ATTENUATION: Case[float]
     OUTPUT: Case[int]
     LOG: Case[str, int, str]
-    DISCONNECTED: Case
+    DISCONNECTED_RFG: Case
+    DISCONNECTED_ARDUINO: Case
     MODE: Case[int]
+    RECONNECTED: Case

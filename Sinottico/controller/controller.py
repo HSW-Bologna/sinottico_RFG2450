@@ -25,6 +25,11 @@ def clearq(q: queue.Queue):
             pass
 
 
+# FIXME: Questo task e' strutturato male. Il suo unico scopo e' mandare messaggi, quindi non ha senso che
+# intervalli nel ciclo la lettura della porta: quando invia un messaggio si puo' bloccare nell'aspettare la risposta.
+# cmdq ci puo' stare nell'ottica di organizzazione dei dati, ma basterebbe una funzione invia_comandi
+
+
 def controllerTask(guiq: queue.Queue, workq: queue.Queue):
     port: serial.Serial = None
     cmdq: queue.Queue = queue.Queue()
@@ -47,28 +52,12 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                     if port:
                         port.close()
 
-                    bytesize = {8: serial.EIGHTBITS}[c.data]
-                    parity = {
-                        'None': serial.PARITY_NONE,
-                        'Even': serial.PARITY_EVEN,
-                        'Odd': serial.PARITY_ODD
-                    }[c.parity]
-                    stop = {
-                        1: serial.STOPBITS_ONE,
-                        1.5: serial.STOPBITS_ONE_POINT_FIVE,
-                        2: serial.STOPBITS_TWO
-                    }[c.stop]
                     try:
-                        port = serial.Serial(port=c.port,
-                                             baudrate=c.baud,
-                                             bytesize=bytesize,
-                                             parity=parity,
-                                             stopbits=stop,
-                                             timeout=0.1)
-                        guiq.put(GuiMessage.CONNECTED())
+                        port = connect_to_port(c)
+                        guiq.put(GuiMessage.CONNECTED_RFG())
                         #cmdq.put(CmdGetLog())
                     except:
-                        guiq.put(GuiMessage.DISCONNECTED())
+                        guiq.put(GuiMessage.DISCONNECTED_RFG())
 
                 else:
                     port = None
@@ -124,6 +113,14 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
 
         if not port:
             continue
+        elif not port.isOpen():
+            try:
+                port.open()
+                guiq.put(GuiMessage.RECONNECTED())
+                clearq(cmdq)
+                currentCmd = None
+            except serial.SerialException:
+                continue
 
         if currentCmd:
             if currentCmd.tosend and elapsed(lastmsgts, 0.05):
@@ -133,9 +130,8 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 try:
                     port.write(tosend.encode())
                 except (OSError, serial.SerialException):
-                    guiq.put(GuiMessage.DISCONNECTED())
+                    guiq.put(GuiMessage.DISCONNECTED_RFG())
                     port.close()
-                    port = None
                     continue
 
                 currentCmd.tosend = False
@@ -147,7 +143,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
             try:
                 read = port.read(port.in_waiting)
             except (OSError, serial.SerialException):
-                guiq.put(GuiMessage.DISCONNECTED())
+                guiq.put(GuiMessage.DISCONNECTED_RFG())
                 port.close()
                 port = None
                 continue
@@ -162,7 +158,8 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 else:
                     currentCmd._error = True
 
-            if currentCmd.error():
+            if currentCmd.error(
+            ):  #TODO: questo probabilmente andrebbe spostato sotto...
                 guiq.put(GuiMessage.ERROR())
                 clearq(cmdq)
                 error = True

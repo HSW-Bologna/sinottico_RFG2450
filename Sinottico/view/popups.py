@@ -48,7 +48,7 @@ def delayPopup(delay):
 def validate_float_strict(value, element):
     newvalue = re.sub("[^0-9.]", "", value)
     if len(newvalue) == 0:
-        return 0
+        return None
 
     try:
         fvalue = float(newvalue)
@@ -103,13 +103,17 @@ def adjustPopup(value):
                   sg.Input(str(value),
                            size=(12, 1),
                            change_submits=True,
+                           focus=True,
                            key="T"),
                   sg.Button("+", size=(4, 1), key="+")
               ], [sg.Button("OK", key="OK", bind_return_key=True)]]
     window = sg.Window("Compensazione",
                        layout,
+                       finalize=True,
                        keep_on_top=True,
                        return_keyboard_events=True)
+
+    window["T"].Update(select=True)
 
     while True:
         event, values = window.Read()
@@ -122,18 +126,23 @@ def adjustPopup(value):
 
         if event in (None, "OK"):
             window.close()
-            return float(window["T"].Get())
-        elif event == "T":
-            if (newvalue := validate_float_strict(values[event],
-                                                      window["T"])) != None:
-                oldvalue = newvalue
+            value = window["T"].Get()
+            if value == "":
+                return 0
             else:
-                window["T"].Update(oldvalue)
+                return float(window["T"].Get())
+        elif event == "T":
+            if values[event] != "":
+                if (newvalue := validate_float_strict(values[event],
+                                                        window["T"])) != None:
+                    oldvalue = newvalue
+                elif values[event] != oldvalue:
+                    window["T"].Update(oldvalue)
         elif event in ["-", "Down:40", "Down:116", "minus:20"
                        ] or event.startswith("Down"):
             x = float(values["T"])
             s = values["S"]
-            if x - s >= 0:
+            if x - s >= 0.5:
                 window["T"].Update("{:.2f}".format(x - s))
             else:
                 window["T"].Update("{:.2f}".format(0.))
