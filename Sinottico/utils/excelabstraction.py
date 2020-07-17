@@ -12,7 +12,7 @@ class CustomExcelWorkbookBecauseWindowsSucks:
         from openpyxl import Workbook, load_workbook
         self.wb = load_workbook(filename)
         self.ws = self.wb.active
-    
+
     def __init__(self, filename):
         import platform
         if platform.system() in ["Windows", "windows"]:
@@ -30,10 +30,10 @@ class CustomExcelWorkbookBecauseWindowsSucks:
                     #logging.info("Excel non installato, procedo con openpyxl")
                     self._openpyxl_init(filename)
             except ModuleNotFoundError:
-                    #logging.info("win32com non installato, procedo con openpyxl")
-                    self._openpyxl_init(filename)
+                #logging.info("win32com non installato, procedo con openpyxl")
+                self._openpyxl_init(filename)
         else:
-            logging.info("Sistema operativo superiore, procedo con openpyxl")
+            #logging.info("Sistema operativo superiore, procedo con openpyxl")
             self._openpyxl_init(filename)
 
     def __setitem__(self, id, value):

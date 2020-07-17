@@ -9,10 +9,10 @@ from types import SimpleNamespace
 
 from .elements import Id
 from ..popups import *
-from ...model import WorkMessage
+from ...model import WorkMessage, GuiMessage
 from ...utils.excelabstraction import CustomExcelWorkbookBecauseWindowsSucks
 
-TMARGIN = 5
+TMARGIN = 50
 ATTENUATION = 32
 
 
@@ -49,6 +49,12 @@ def sendCommand(msg, m: SimpleNamespace, w):
 
     while True:
         msg = m.guiq.get()
+
+        # Caso speciale di disconnessione
+        if msg == GuiMessage.DISCONNECTED_RFG():
+            m.guiq.put(msg)
+            return None
+
         try:
             res = msg.recv()
             w[Id.LOGAUTO].Update(res,
@@ -123,6 +129,23 @@ def automatedTestProcedure(m, w, template, destination):
     def firstTest(temperature, m, w, data):
         attenuation = ATTENUATION
 
+        while attenuation >= 0:
+            if temperature in data.keys(
+            ) and attenuation in data[temperature].keys():
+                attenuation -= 1
+                continue
+            else:
+                break
+
+        # I dati sono gia' stati raccolti
+        if attenuation < 0:
+            return True
+
+        if not sendCommand(
+                WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m, w):
+            w[Id.STATUS].Update("Errore di comunicazione!")
+            return False
+
         if not sg.Popup(
                 "Verifica carico 500HM correttamente inserito e temperatura impostata {:.2f} C"
                 .format(temperature),
@@ -132,17 +155,6 @@ def automatedTestProcedure(m, w, template, destination):
             return False
 
         while attenuation >= 0:
-            if temperature in data.keys(
-            ) and attenuation in data[temperature].keys():
-                attenuation -= 1
-                continue
-
-            if not sendCommand(
-                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m,
-                    w):
-                w[Id.STATUS].Update("Errore di comunicazione!")
-                return False
-
             if readings := readParameters(temperature, m, w):
                 if not temperature in data.keys():
                     data[temperature] = {}
@@ -158,12 +170,38 @@ def automatedTestProcedure(m, w, template, destination):
             else:
                 return False
 
+            if attenuation <= 0:
+                break
+
             attenuation -= 1
+            if not sendCommand(
+                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m,
+                    w):
+                w[Id.STATUS].Update("Errore di comunicazione!")
+                return False
 
         return True
 
     def secondTest(temperature, m, w, data):
         attenuation = ATTENUATION
+        first = True
+
+        while attenuation >= 0:
+            if temperature in data.keys(
+            ) and attenuation in data[temperature].keys():
+                attenuation -= 1
+                continue
+            else:
+                break
+
+        # I dati sono gia' stati raccolti
+        if attenuation < 0:
+            return True
+
+        if not sendCommand(
+                WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m, w):
+            w[Id.STATUS].Update("Errore di comunicazione!")
+            return False
 
         if not sg.Popup(
                 "Inserire correttamente tappo in corto e temperatura impostata a {:.2f} C"
@@ -174,19 +212,10 @@ def automatedTestProcedure(m, w, template, destination):
             return False
 
         while attenuation >= 0:
-            if temperature in data.keys(
-            ) and attenuation in data[temperature].keys():
-                attenuation -= 1
-                continue
-
-            if not sendCommand(
-                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m,
-                    w):
-                w[Id.STATUS].Update("Errore di comunicazione!")
-                return False
-
-            if attenuation != ATTENUATION:
+            if not first:
                 delayPopup(0.5)
+            else:
+                first = False
 
             delay = 0
             while True:
@@ -196,7 +225,7 @@ def automatedTestProcedure(m, w, template, destination):
                 if values := readParameters(temperature, m, w):
                     _, adcf, adcr, _ = values
 
-                    if adcf == 0 and adcr == 0:
+                    if False and adcf == 0 and adcr == 0:
                         if sg.PopupOKCancel(
                                 "Il dispositivo e' in protezione; riprovare?",
                                 keep_on_top=True,
@@ -215,7 +244,15 @@ def automatedTestProcedure(m, w, template, destination):
                 else:
                     return False
 
+            if attenuation <= 0:
+                break
+
             attenuation -= 1
+            if not sendCommand(
+                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m,
+                    w):
+                w[Id.STATUS].Update("Errore di comunicazione!")
+                return False
 
         return True
 

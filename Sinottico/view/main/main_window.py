@@ -367,7 +367,7 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
                 selectMode(window, x),
 
             def reconnected(m: SimpleNamespace, window, template, destination):
-                connected(m)
+                connected_rfg(m)
                 m.restart = m.data_acquisition
 
             msg.match(
