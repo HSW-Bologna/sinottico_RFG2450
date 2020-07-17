@@ -1,7 +1,9 @@
 import sys
 import datetime
 import os
+import logging
 
+logging.basicConfig(filename='sinottico.log', level=logging.INFO)
 
 class CustomExcelWorkbookBecauseWindowsSucks:
     def _openpyxl_init(self, filename):
@@ -22,13 +24,16 @@ class CustomExcelWorkbookBecauseWindowsSucks:
                     self.wb = self.excel.Workbooks.Open(
                         os.path.join(os.getcwd(), filename))
                     self.ws = self.wb.Worksheets(1)
+                    logging.info("Caricato il modulo Excel Nativo")
                 except pywintypes.com_error:
+                    logging.info("Excel non installato, procedo con openpyxl")
                     self._openpyxl_init(filename)
             except ModuleNotFoundError:
+                    logging.info("win32com non installato, procedo con openpyxl")
                     self._openpyxl_init(filename)
         else:
+            logging.info("Sistema operativo superiore, procedo con openpyxl")
             self._openpyxl_init(filename)
-        print(self.native)
 
     def __setitem__(self, id, value):
         if self.native:

@@ -15,5 +15,5 @@ Una volta scaricata la repository, il programma puo' essere eseguito lanciando l
 
     - Raccogliere tutte le variabili in delle strutture
     - Smettere di usare implicitamente '\r\n' come fine riga, sfruttare l'opzione configurata
-    - Focus dei popup quando compaiono
-    - Usare per bene tutti i popup tra una procedura e l'altra
+    - Aggiungere una menubar con cui abilitare i log
+    - Smettere completamente di usare parse, ogni tanto emerge ancora un errore

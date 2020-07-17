@@ -38,7 +38,7 @@ def controller_arduino_task(guiq: queue.Queue, workq: queue.Queue):
                 port.write(cmd.commandString().encode())
 
                 read = port.read_until(config.endBytes())
-                if len(read) > 0 and cmd.parseResponse(read):
+                if len(read) > 0 and cmd.parseResponse(read.decode()):
                     if cmd.error():
                         guiq.put(GuiMessage.ERROR_ARDUINO())
                     elif res := cmd.result():
