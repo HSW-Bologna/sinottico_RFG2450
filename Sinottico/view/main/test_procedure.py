@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 from .elements import Id
 from ..popups import *
-from ...model import WorkMessage, GuiMessage
+from ...model import WorkMessage, GuiMessage, ArduinoMessage
 from ...utils.excelabstraction import CustomExcelWorkbookBecauseWindowsSucks
 
 TMARGIN = 5
@@ -88,7 +88,12 @@ def sendCommand(msg, m: SimpleNamespace, w):
             pass
 
 
-def automatedTestProcedure(m, w, template, destination):
+def automatedTestProcedure(m,
+                           w,
+                           template,
+                           destination,
+                           temp_bassa=23,
+                           temp_alta=43):
     def readParameters(t, m, w):
         while True:
             if res := sendCommand(WorkMessage.SEND("Read_PAR"), m, w):
@@ -108,6 +113,12 @@ def automatedTestProcedure(m, w, template, destination):
                             key="Interrompi") == "Interrompi":
                         w[Id.STATUS].Update("Procedura interrotta")
                         return False
+                    else:
+                        m.arduinoq.put(
+                            ArduinoMessage.TEMPERATURE({
+                                25: temp_bassa,
+                                45: temp_alta
+                            }[temperature]))
                 else:
                     break
             else:
@@ -128,6 +139,12 @@ def automatedTestProcedure(m, w, template, destination):
 
     def firstTest(temperature, m, w, data):
         attenuation = ATTENUATION
+
+        m.arduinoq.put(
+            ArduinoMessage.TEMPERATURE({
+                25: temp_bassa,
+                45: temp_alta
+            }[temperature]))
 
         while attenuation >= 0:
             if temperature in data.keys(
@@ -185,6 +202,12 @@ def automatedTestProcedure(m, w, template, destination):
     def secondTest(temperature, m, w, data):
         attenuation = ATTENUATION
         first = True
+
+        m.arduinoq.put(
+            ArduinoMessage.TEMPERATURE({
+                25: temp_bassa,
+                45: temp_alta
+            }[temperature]))
 
         while attenuation >= 0:
             if temperature in data.keys(

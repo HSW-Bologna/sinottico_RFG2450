@@ -15,6 +15,8 @@ class Id(Enum):
     END = auto()
     INPUT = auto()
     LOG = auto()
+    TEMP_LOW = auto()
+    TEMP_HIGH = auto()
     SN = auto()
     INFO = auto()
     REVISION = auto()

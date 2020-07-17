@@ -158,15 +158,14 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 else:
                     currentCmd._error = True
 
-            if currentCmd.error(
-            ):  #TODO: questo probabilmente andrebbe spostato sotto...
-                guiq.put(GuiMessage.ERROR())
-                clearq(cmdq)
-                error = True
-                currentCmd = None
-            elif read:
+            if read:
                 if currentCmd.parseResponse(read.decode(errors='ignore')):
-                    if result := currentCmd.result():
+                    if currentCmd.error():
+                        guiq.put(GuiMessage.ERROR())
+                        clearq(cmdq)
+                        error = True
+                        currentCmd = None
+                    elif result := currentCmd.result():
                         guiq.put(result)
 
                     error = False

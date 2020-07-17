@@ -23,6 +23,9 @@ class Command(ABC):
         self._error = False
         self._ending = ending
 
+    def end_bytes(self):
+        return self._ending.encode()
+
     def error(self):
         return self._error
 
@@ -62,6 +65,7 @@ class ArduinoTemperature(Command):
             self._error = True
 
         return True
+
 
 class CmdSet(Command):
     def parseResponse(self, response: str) -> bool:
@@ -167,7 +171,8 @@ class CmdGetPower(Command):
         return "Read_PAR"
 
     def parseResponse(self, response: str) -> bool:
-        self.direct, self.reflected, self.temp = parsePar(response)
+        if res := parsePar(response):
+            self.direct, self.reflected, self.temp = res
         return True
 
     def result(self):

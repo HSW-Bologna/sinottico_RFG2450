@@ -2,6 +2,7 @@ from queue import Queue
 import queue
 from enum import Enum, auto
 import time
+import re
 import PySimpleGUI as sg  # type: ignore
 from types import SimpleNamespace
 
@@ -24,12 +25,19 @@ def updateWidgets(m, window, c, carduino):
     window[Id.CONNECT_ARDUINO].Update(disabled=not carduino.port)
     [
         window[x].Update(disabled=not m.connected) for x in [
-            Id.SEND, Id.INFO, Id.TAB1, Id.TAB2, Id.TAB3, Id.TAB4, Id.TAB5,
+            Id.SEND,
+            Id.INFO,
+            Id.TAB1,
+            Id.TAB2,
+            Id.TAB3,
+            Id.TAB4,
+            Id.TAB5,
         ]
     ]
     [
-        window[x].Update(disabled=not (
-            window[Id.TEMPLATE].Get() and window[Id.DESTINATION].Get() and m.connected))
+        window[x].Update(
+            disabled=not (window[Id.TEMPLATE].Get()
+                          and window[Id.DESTINATION].Get() and m.connected))
         for x in [Id.AUTOTEST, Id.RETRYAUTOTEST]
     ]
 
@@ -51,7 +59,14 @@ def startAutomatedTest(m, w, template, destination):
     ]
     [w[x].Update(disabled=True) for x in elements]
     w[Id.TAB2].Select()
-    m.data_acquisition = automatedTestProcedure(m, w, template, destination)
+    try:
+        temp_bassa = int(w[Id.TEMP_LOW])
+        temp_alta = int(w[Id.TEMP_HIGH])
+    except ValueError:
+        temp_bassa = 23
+        temp_alta = 43
+    m.data_acquisition = automatedTestProcedure(m, w, template, destination,
+                                                temp_bassa, temp_alta)
     [w[x].Update(disabled=False) for x in elements]
 
 
@@ -181,7 +196,21 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
                     change_submits=True,
                     size=(5, 1),
                     key=Id.K),
-            sg.Text("Coefficiente K")
+            sg.Text("Coefficiente K", size=(16, 1)),
+        ],
+        [
+            sg.Spin([x for x in range(1, 80)],
+                    initial_value="23",
+                    change_submits=True,
+                    size=(5, 1),
+                    key=Id.TEMP_LOW),
+            sg.Text("Temperatura bassa", size=(25, 1)),
+            sg.Spin([x for x in range(1, 80)],
+                    initial_value="43",
+                    change_submits=True,
+                    size=(5, 1),
+                    key=Id.TEMP_HIGH),
+            sg.Text("Temperatura alta", size=(25, 1)),
         ],
         [
             sg.Button("Avvio Procedura", key=Id.AUTOTEST),
@@ -267,6 +296,10 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
             oldkvalue = newvalue
         else:
             window[Id.K].Update(oldkvalue)
+
+        for x in [Id.TEMP_LOW, Id.TEMP_HIGH]:
+            raw = window[x].Get()
+            window[x].Update(re.sub("[^0-9]", "", raw))
 
         if event in [Id.SETTINGS, Id.SETTINGS_ARDUINO]:
             c = {
