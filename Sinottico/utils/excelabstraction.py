@@ -25,15 +25,15 @@ class CustomExcelWorkbookBecauseWindowsSucks:
                     self.wb = self.excel.Workbooks.Open(
                         os.path.join(os.getcwd(), filename))
                     self.ws = self.wb.Worksheets(1)
-                    #logging.info("Caricato il modulo Excel Nativo")
+                    print("Caricato il modulo Excel Nativo")
                 except pywintypes.com_error:
-                    #logging.info("Excel non installato, procedo con openpyxl")
+                    print("Excel non installato, procedo con openpyxl")
                     self._openpyxl_init(filename)
             except ModuleNotFoundError:
-                #logging.info("win32com non installato, procedo con openpyxl")
+                print("win32com non installato, procedo con openpyxl")
                 self._openpyxl_init(filename)
         else:
-            #logging.info("Sistema operativo superiore, procedo con openpyxl")
+            print("Sistema operativo superiore, procedo con openpyxl")
             self._openpyxl_init(filename)
 
     def __setitem__(self, id, value):

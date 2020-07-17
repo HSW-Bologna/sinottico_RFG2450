@@ -12,7 +12,7 @@ from ..popups import *
 from ...model import WorkMessage, GuiMessage
 from ...utils.excelabstraction import CustomExcelWorkbookBecauseWindowsSucks
 
-TMARGIN = 50
+TMARGIN = 5
 ATTENUATION = 32
 
 
@@ -225,7 +225,7 @@ def automatedTestProcedure(m, w, template, destination):
                 if values := readParameters(temperature, m, w):
                     _, adcf, adcr, _ = values
 
-                    if False and adcf == 0 and adcr == 0:
+                    if adcf == 0 and adcr == 0:
                         if sg.PopupOKCancel(
                                 "Il dispositivo e' in protezione; riprovare?",
                                 keep_on_top=True,

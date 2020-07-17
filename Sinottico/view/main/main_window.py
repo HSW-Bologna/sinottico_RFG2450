@@ -25,13 +25,12 @@ def updateWidgets(m, window, c, carduino):
     [
         window[x].Update(disabled=not m.connected) for x in [
             Id.SEND, Id.INFO, Id.TAB1, Id.TAB2, Id.TAB3, Id.TAB4, Id.TAB5,
-            Id.AUTOTEST
         ]
     ]
     [
         window[x].Update(disabled=not (
-            window[Id.TEMPLATE].Get() and window[Id.DESTINATION].Get()))
-        for x in [Id.AUTOTEST]
+            window[Id.TEMPLATE].Get() and window[Id.DESTINATION].Get() and m.connected))
+        for x in [Id.AUTOTEST, Id.RETRYAUTOTEST]
     ]
 
 
@@ -48,7 +47,7 @@ def calculateVSWR(pref, pfwr):
 def startAutomatedTest(m, w, template, destination):
     elements = [
         Id.SETTINGS, Id.CONNECT, Id.CONNECT_ARDUINO, Id.TAB1, Id.TAB3, Id.TAB4,
-        Id.TAB5, Id.AUTOTEST
+        Id.TAB5, Id.AUTOTEST, Id.RETRYAUTOTEST
     ]
     [w[x].Update(disabled=True) for x in elements]
     w[Id.TAB2].Select()
@@ -262,9 +261,6 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
         event, values = window.read(timeout=0.1, timeout_key=Id.TIMEOUT)
         if event in (None, 'Cancel'):  # if user closes window or clicks cancel
             break
-
-        window[Id.AUTOTEST].Update(disabled=(not m.connected) or (
-            not (values[Id.TEMPLATE] and values[Id.DESTINATION])))
 
         if (newvalue := validate_float_lask(window[Id.K].Get(),
                                             window[Id.K])) != None:
