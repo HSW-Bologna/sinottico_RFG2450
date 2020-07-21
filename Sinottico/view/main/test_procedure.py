@@ -114,7 +114,7 @@ def automatedTestProcedure(m,
                         w[Id.STATUS].Update("Procedura interrotta")
                         return False
                     else:
-                        m.arduinoq.put(
+                        m.ardq.put(
                             ArduinoMessage.TEMPERATURE({
                                 25: temp_bassa,
                                 45: temp_alta
@@ -140,7 +140,7 @@ def automatedTestProcedure(m,
     def firstTest(temperature, m, w, data):
         attenuation = ATTENUATION
 
-        m.arduinoq.put(
+        m.ardq.put(
             ArduinoMessage.TEMPERATURE({
                 25: temp_bassa,
                 45: temp_alta
@@ -203,7 +203,7 @@ def automatedTestProcedure(m,
         attenuation = ATTENUATION
         first = True
 
-        m.arduinoq.put(
+        m.ardq.put(
             ArduinoMessage.TEMPERATURE({
                 25: temp_bassa,
                 45: temp_alta
@@ -248,7 +248,7 @@ def automatedTestProcedure(m,
                 if values := readParameters(temperature, m, w):
                     _, adcf, adcr, _ = values
 
-                    if adcf == 0 and adcr == 0:
+                    if adcf == 0 and adcr == 0 and False:
                         if sg.PopupOKCancel(
                                 "Il dispositivo e' in protezione; riprovare?",
                                 keep_on_top=True,

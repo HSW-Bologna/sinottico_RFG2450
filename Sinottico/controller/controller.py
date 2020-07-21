@@ -44,6 +44,45 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
         try:
             msg: WorkMessage = workq.get(timeout=0.1)
 
+            def send_command(cmd, port, guiq):
+                if not port or not port.isOpen():
+                    return
+
+                count = 0
+                while count < 5:
+                    try:
+                        tosend = cmd.commandString().encode() + cmd.end_bytes()
+                        if not cmd.hidden:
+                            guiq.put(GuiMessage.SEND(tosend.decode()))
+                        port.write(tosend)
+                        time.sleep(0.02)  # aspetta una risposta
+                        #read = port.read_until(cmd.end_bytes()) # alcuni comandi prevedono due righe di risposta
+                        read = port.read(port.in_waiting)
+                    except serial.SerialException as e:
+                        port.close()
+                        guiq.put(GuiMessage.DISCONNECTED_RFG())
+                        return
+
+                    if len(read) > 0 and cmd.parseResponse(
+                            read.decode(errors='ignore')):
+
+                        if not cmd.hidden:
+                            guiq.put(
+                                GuiMessage.RECV(read.decode(errors='ignore')))
+
+                        if cmd.error():
+                            guiq.put(GuiMessage.ERROR())
+                        elif res := cmd.result():
+                            guiq.put(res)
+                            return
+                        else:
+                            return
+                    else:
+                        guiq.put(GuiMessage.ERROR())
+
+                    count += 1
+                return
+
             def newPort(c: SerialConfig):
                 nonlocal port, cmdq, guiq
                 clearq(cmdq)
@@ -85,10 +124,11 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 cmdq.put(CmdGetLog())
 
             def handshake(cmdq):
+                cmdq.put(CmdSetMode(2))
+                cmdq.put(CmdSetOutput(0))
                 cmdq.put(CmdSetMode(0))
                 cmdq.put(CmdSetAttenuation(32.00))
                 cmdq.put(CmdGetAttenuation())
-                cmdq.put(CmdSetOutput(0))
                 cmdq.put(CmdGetOutput())
                 cmdq.put(CmdGetMode())
                 cmdq.put(CmdGetSerialNumber())
@@ -121,6 +161,16 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 currentCmd = None
             except serial.SerialException:
                 continue
+
+        if elapsed(lastmsgts, 0.05):
+            try:
+                cmd = cmdq.get_nowait()
+                cmd._ending = config.endStr()
+                send_command(cmd, port, guiq)
+                lastmsgts = time.time()
+            except queue.Empty:
+                pass
+        '''
 
         if currentCmd:
             if currentCmd.tosend and elapsed(lastmsgts, 0.05):
@@ -161,6 +211,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
             if read:
                 if currentCmd.parseResponse(read.decode(errors='ignore')):
                     if currentCmd.error():
+                        print("errore su " + currentCmd.commandString() + ";" + read.decode(errors='ignore'))
                         guiq.put(GuiMessage.ERROR())
                         clearq(cmdq)
                         error = True
@@ -178,3 +229,4 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
 
             except queue.Empty:
                 currentCmd = None
+        '''

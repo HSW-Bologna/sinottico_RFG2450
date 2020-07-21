@@ -55,13 +55,13 @@ def calculateVSWR(pref, pfwr):
 def startAutomatedTest(m, w, template, destination):
     elements = [
         Id.SETTINGS, Id.CONNECT, Id.CONNECT_ARDUINO, Id.TAB1, Id.TAB3, Id.TAB4,
-        Id.TAB5, Id.AUTOTEST, Id.RETRYAUTOTEST
+        Id.TAB5, Id.AUTOTEST, Id.RETRYAUTOTEST, Id.TEMP_HIGH, Id.TEMP_LOW, Id.K
     ]
     [w[x].Update(disabled=True) for x in elements]
     w[Id.TAB2].Select()
     try:
-        temp_bassa = int(w[Id.TEMP_LOW])
-        temp_alta = int(w[Id.TEMP_HIGH])
+        temp_bassa = int(w[Id.TEMP_LOW].Get())
+        temp_alta = int(w[Id.TEMP_HIGH].Get())
     except ValueError:
         temp_bassa = 23
         temp_alta = 43

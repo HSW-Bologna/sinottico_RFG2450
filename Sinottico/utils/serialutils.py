@@ -3,6 +3,7 @@ import glob
 import serial  # type: ignore
 from ..model import *
 
+
 def serialPorts(avoid=[]):
     if sys.platform.startswith('win'):
         ports = ['COM%s' % (i + 1) for i in range(256)]

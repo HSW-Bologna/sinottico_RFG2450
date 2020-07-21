@@ -48,7 +48,7 @@ class Command(ABC):
 
 
 class ArduinoTemperature(Command):
-    def __init__(self, temperature, hidden=True, ending='\r\n'):
+    def __init__(self, temperature, hidden=True, ending='\n'):
         super().__init__(hidden=hidden, ending=ending)
         self.temperature = temperature
 
