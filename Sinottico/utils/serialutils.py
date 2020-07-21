@@ -21,7 +21,7 @@ def serialPorts(avoid=[]):
             if not port in avoid:
                 s = serial.Serial(port)
                 s.close()
-            result.append(port)
+                result.append(port)
         except (OSError, serial.SerialException):
             pass
     return result

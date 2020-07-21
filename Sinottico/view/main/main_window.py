@@ -7,7 +7,7 @@ import PySimpleGUI as sg  # type: ignore
 from types import SimpleNamespace
 
 from ..popups import validate_float_lask
-from ..settings import settingsWindow
+from ..settings import settings_window
 from ...resources import resourcePath
 from ...model import *
 from .elements import Id
@@ -302,11 +302,13 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
             window[x].Update(re.sub("[^0-9]", "", raw))
 
         if event in [Id.SETTINGS, Id.SETTINGS_ARDUINO]:
-            c = {
+            configs = {
                 Id.SETTINGS: config,
                 Id.SETTINGS_ARDUINO: config_arduino
-            }[event]
-            c.set_to(settingsWindow(c))
+            }
+            c = configs[event]
+            otherc = configs[{Id.SETTINGS : Id.SETTINGS_ARDUINO, Id.SETTINGS_ARDUINO : Id.SETTINGS}[event]]
+            c.set_to(settings_window(c, avoid=[otherc.port]))
             if c.port:
                 text = "{} {},{}{}{}".format(c.port, c.baud, c.data,
                                              c.parity[0], c.stop)

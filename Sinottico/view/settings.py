@@ -13,11 +13,11 @@ class Id(Enum):
     FCTRL = 9
     END = 12
 
-def settingsWindow(config: SerialConfig):
+def settings_window(config: SerialConfig, avoid=[]):
     BAUDRATES = [4800, 9600, 19200, 38400, 57600, 115200, 230400]
 
     csize = (16, 1)
-    ports = serialPorts()
+    ports = serialPorts(avoid=avoid)
 
     if config.port != None and config.port in ports:
         defport = config.port
