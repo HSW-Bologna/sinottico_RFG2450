@@ -42,7 +42,7 @@ def controller_arduino_task(guiq: queue.Queue, workq: queue.Queue):
                     guiq.put(GuiMessage.DISCONNECTED_ARDUINO())
                     return
 
-                if len(read) > 0 and cmd.parseResponse(read.decode()):
+                if len(read) > 0 and cmd.parseResponse(read.decode(errors='ignore')):
                     if cmd.error():
                         guiq.put(GuiMessage.ERROR_ARDUINO())
                     elif res := cmd.result():

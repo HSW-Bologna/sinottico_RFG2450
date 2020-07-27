@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod, abstractstaticmethod
-from parse import parse  # type: ignore
 import time
+import re
 
 from ..model import *
 
@@ -13,7 +13,12 @@ def parseSerialNumber(string):
 
 
 def parsePar(string):
-    return parse("PAR,{},Wf,{},Wr,{},C\r\n", string)
+    dotnum = "\d+(?:\.\d+)?"
+    pattern = "Par,{0},Wf{0},Wr{0},C".format(dotnum)
+    if res := re.match(pattern, string):
+        return res.groups()
+    else:
+        return None
 
 
 class Command(ABC):
@@ -106,7 +111,6 @@ class CmdGetMode(Command):
 
     def parseResponse(self, response: str) -> bool:
         if response.startswith("MODE,") and response.endswith("\r\n"):
-            #if res := parse("MODE,{:d}\r\n", response):
             self.mode = int(response.replace("MODE,", "").replace("\r\n", ""))
         else:
             self._error = True
@@ -151,10 +155,6 @@ class CmdGetLog(Command):
     def parseResponse(self, response: str) -> bool:
         self.specialParse(response)
         return True
-
-        #TODO: questa istruzione ogni tanto causa un errore
-        res = parse("S/N,{:d}\r\nTIME,{:x}\r\n{}\r\n",
-                    "S/N,00.00,\r\nTIME,0x1400\r\nLOG\r\n")  # response)
 
     def result(self):
         return GuiMessage.LOG(self.serialNumber, self.lifetimes, self.log)

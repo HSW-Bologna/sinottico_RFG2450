@@ -1,16 +1,17 @@
 import PySimpleGUI as sg  # type: ignore
 from queue import Queue, Empty
-import parse
 import time
 from openpyxl import Workbook, load_workbook
 import os
 import datetime
 from types import SimpleNamespace
+import re
 
 from .elements import Id
 from ..popups import *
 from ...model import WorkMessage, GuiMessage, ArduinoMessage
 from ...utils.excelabstraction import CustomExcelWorkbookBecauseWindowsSucks
+from ...controller.commands import parsePar
 
 TMARGIN = 5
 ATTENUATION = 32
@@ -97,10 +98,10 @@ def automatedTestProcedure(m,
     def readParameters(t, m, w):
         while True:
             if res := sendCommand(WorkMessage.SEND("Read_PAR"), m, w):
-                try:
-                    _, _, temp = parse.parse("PAR,{},Wf,{},Wr,{},C\r\n", res)
+                if res := parsePar(res):
+                    _, _, temp = res
                     temp = float(temp)
-                except TypeError:
+                else:
                     w[Id.STATUS].Update("Errore di comunicazione!")
                     return False
 
@@ -126,14 +127,11 @@ def automatedTestProcedure(m,
                 return False
 
         if res := sendCommand(WorkMessage.SEND("Read_ADC"), m, w):
-            try:
-                adcc, adcf, adcr, adct, adcp = parse.parse(
-                    "{:d},{:d},{:d},{:d},{:d}\r\n", res)
-            except TypeError:
+            if res := re.match("{0},{0},{0},{0},{0}\r\n".format("(\d+)"), res):
+                adcc, adcf, adcr, adct, adcp = res.groups()
+            else:
+                w[Id.STATUS].Update("Errore di comunicazione!")
                 return False
-        else:
-            w[Id.STATUS].Update("Errore di comunicazione!")
-            return False
 
         return (adcc, adcf, adcr, adct)
 
@@ -296,8 +294,8 @@ def automatedTestProcedure(m,
         return True
 
     if sn := sendCommand(WorkMessage.SEND("Read_SN"), m, w):
-        if res := parse.parse("S/N,{}\r\n", sn):
-            serialNumber = res.fixed[0]
+        if res := re.match("S/N,(\d+)\r\n", sn):
+            serialNumber = res.groups()[0]
         else:
             w[Id.STATUS].Update("Errore di comunicazione!")
             return True
