@@ -18,7 +18,7 @@ ATTENUATION = 32
 
 
 def saveData(wb, data1, data2, destination, serial, ver):
-    cellId = lambda x, y: "{}{}".format(chr(y), x)
+    def cellId(x, y): return "{}{}".format(chr(y), x)
 
     wb['C3'] = serial
     wb['C4'] = datetime.date.today().strftime("%d/%m/%Y")
@@ -95,7 +95,10 @@ def automatedTestProcedure(m,
                            destination,
                            temp_bassa=23,
                            temp_alta=43):
+
     def readParameters(t, m, w):
+        assert(t == 25 or t == 45)
+
         while True:
             if res := sendCommand(WorkMessage.SEND("Read_PAR"), m, w):
                 if res := parsePar(res):
@@ -119,7 +122,7 @@ def automatedTestProcedure(m,
                             ArduinoMessage.TEMPERATURE({
                                 25: temp_bassa,
                                 45: temp_alta
-                            }[temperature]))
+                            }[t]))
                 else:
                     break
             else:
@@ -133,9 +136,13 @@ def automatedTestProcedure(m,
                 w[Id.STATUS].Update("Errore di comunicazione!")
                 return False
 
-        return (adcc, adcf, adcr, adct)
+        try:
+            return tuple(map(int, (adcc, adcf, adcr, adct,)))
+        except ValueError:  # Ho estratto i valori come puramente numerici da una regex, non dovrebbe succedere
+            return False
 
     def firstTest(temperature, m, w, data):
+        assert(temperature == 25 or temperature == 45)
         attenuation = ATTENUATION
 
         m.ardq.put(
@@ -198,6 +205,7 @@ def automatedTestProcedure(m,
         return True
 
     def secondTest(temperature, m, w, data):
+        assert(temperature == 25 or temperature == 45)
         attenuation = ATTENUATION
         first = True
 
@@ -219,8 +227,7 @@ def automatedTestProcedure(m,
         if attenuation < 0:
             return True
 
-        if not sendCommand(
-                WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m, w):
+        if not sendCommand(WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m, w):
             w[Id.STATUS].Update("Errore di comunicazione!")
             return False
 
@@ -246,11 +253,14 @@ def automatedTestProcedure(m,
                 if values := readParameters(temperature, m, w):
                     _, adcf, adcr, _ = values
 
-                    if adcf == 0 and adcr == 0 and False:
+                    if adcf == 0 and adcr == 0:
                         if sg.PopupOKCancel(
                                 "Il dispositivo e' in protezione; riprovare?",
                                 keep_on_top=True,
                                 title="Attenzione!") == "OK":
+                            if not sendCommand(WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m, w):
+                                w[Id.STATUS].Update("Errore di comunicazione!")
+                                return False
                             continue
                         else:
                             return False
@@ -269,9 +279,7 @@ def automatedTestProcedure(m,
                 break
 
             attenuation -= 1
-            if not sendCommand(
-                    WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m,
-                    w):
+            if not sendCommand(WorkMessage.SEND("Set_ATT,{:.2f}".format(attenuation)), m, w):
                 w[Id.STATUS].Update("Errore di comunicazione!")
                 return False
 
@@ -333,8 +341,7 @@ def automatedTestProcedure(m,
         sg.Popup(
             title="ATTENZIONE!",
             keep_on_top=True,
-            custom_text=
-            "NON STACCARE L'ANTENNA SE LA POTENZA EROGATA SUPERA I 5 WATT!")
+            custom_text="NON STACCARE L'ANTENNA SE LA POTENZA EROGATA SUPERA I 5 WATT!")
         return True
 
     if res := yesNoPopup("Procedura terminata. Salvare i dati?"):

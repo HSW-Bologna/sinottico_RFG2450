@@ -1,12 +1,27 @@
 from queue import Queue
 import threading
+import sys
+from io import TextIOBase
 
 from .view.main.main_window import mainWindow
 from .controller.controller import controllerTask
 from .controller.arduino import controller_arduino_task
 
 
+class LazyWriter(TextIOBase):
+    def __init__(self, filepath):
+        self.file = None
+        self.filepath = filepath
+
+    def write(self, stuff):
+        if not self.file:
+            self.file = open(self.filepath, "w")
+        self.file.write(stuff)
+
+
 def main():
+    sys.stderr = LazyWriter("trace.txt")
+
     workq: queue.Queue = Queue()
     ardq: queue.Queue = Queue()
     guiq: queue.Queue = Queue()

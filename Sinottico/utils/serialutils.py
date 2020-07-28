@@ -27,9 +27,7 @@ def serialPorts(avoid=[]):
     return result
 
 
-
-
-def connect_to_port(c: SerialConfig):
+def connect_to_port(c: SerialConfig, timeout=0.2):
     bytesize = {8: serial.EIGHTBITS}[c.data]
     parity = {
         'None': serial.PARITY_NONE,
@@ -46,4 +44,4 @@ def connect_to_port(c: SerialConfig):
                          bytesize=bytesize,
                          parity=parity,
                          stopbits=stop,
-                         timeout=0.2)
+                         timeout=timeout)

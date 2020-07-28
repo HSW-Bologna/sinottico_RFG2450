@@ -13,8 +13,8 @@ def parseSerialNumber(string):
 
 
 def parsePar(string):
-    dotnum = "\d+(?:\.\d+)?"
-    pattern = "Par,{0},Wf{0},Wr{0},C".format(dotnum)
+    dotnum = "([-+]?\d+(?:\.\d+)?)"
+    pattern = "PAR,{0},Wf,{0},Wr,{0},C\r\n".format(dotnum)
     if res := re.match(pattern, string):
         return res.groups()
     else:

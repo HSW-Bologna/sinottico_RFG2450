@@ -34,21 +34,30 @@ def controller_arduino_task(guiq: queue.Queue, workq: queue.Queue):
                 if not port or not port.isOpen():
                     return
 
-                try:
-                    port.write(cmd.commandString().encode())
-                    read = port.read_until(cmd.end_bytes())
-                except serial.SerialException as e:
-                    port.close()
-                    guiq.put(GuiMessage.DISCONNECTED_ARDUINO())
-                    return
+                counter = 0
+                while counter < 5:
+                    try:
+                        time.sleep(.5)
+                        tosend = cmd.commandString().encode()
+                        port.reset_input_buffer()
+                        port.write(tosend)
+                        read = port.read_until(cmd.end_bytes())
+                    except serial.SerialException as e:
+                        port.close()
+                        guiq.put(GuiMessage.DISCONNECTED_ARDUINO())
+                        return
 
-                if len(read) > 0 and cmd.parseResponse(read.decode(errors='ignore')):
-                    if cmd.error():
-                        guiq.put(GuiMessage.ERROR_ARDUINO())
-                    elif res := cmd.result():
-                        guiq.put(res)
-                else:
-                    guiq.put(GuiMessage.ERROR_ARDUINO())
+                    if len(read) > 0 and cmd.parseResponse(read.decode(errors='ignore')):
+                        if cmd.error():
+                            pass
+                        else:
+                            if res := cmd.result():
+                                guiq.put(res)
+                            return
+
+                    counter += 1
+
+                guiq.put(GuiMessage.ERROR_ARDUINO())
 
             def newPort(c: SerialConfig, guiq):
                 nonlocal port
@@ -58,8 +67,8 @@ def controller_arduino_task(guiq: queue.Queue, workq: queue.Queue):
                         port.close()
 
                     try:
-                        port = connect_to_port(c)
-                        time.sleep(1.5)
+                        port = connect_to_port(c, .5)
+                        time.sleep(2)
                         guiq.put(GuiMessage.CONNECTED_ARDUINO())
                         send_command(
                             ArduinoTemperature(25, ending=config.endStr()),
@@ -73,7 +82,7 @@ def controller_arduino_task(guiq: queue.Queue, workq: queue.Queue):
 
             msg.match(
                 newport=lambda c: newPort(c, guiq),
-                temperature=lambda x: send_command(ArduinoTemperature(x), port,
+                temperature=lambda x: send_command(ArduinoTemperature(x, ending=config.endStr()), port,
                                                    guiq),
             )
         except queue.Empty:

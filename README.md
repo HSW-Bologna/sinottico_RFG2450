@@ -15,4 +15,5 @@ Una volta scaricata la repository, il programma puo' essere eseguito lanciando l
 
     - Raccogliere tutte le variabili in delle strutture
     - Smettere di usare implicitamente '\r\n' come fine riga, sfruttare l'opzione configurata
-    - Aggiungere una menubar con cui abilitare i log
+    - Riordinare i metodi per estrarre il fine riga dai comandi
+    - Aggiungere la funzione della barra di calibrazione
