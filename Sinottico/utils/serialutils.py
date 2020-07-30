@@ -1,10 +1,12 @@
 import sys
 import glob
-import serial  # type: ignore
+import serial
 from ..model import *
 
+from typing import List
 
-def serialPorts(avoid=[]):
+
+def serialPorts(avoid : List[str]=[]) -> List[str]:
     if sys.platform.startswith('win'):
         ports = ['COM%s' % (i + 1) for i in range(256)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
@@ -27,7 +29,7 @@ def serialPorts(avoid=[]):
     return result
 
 
-def connect_to_port(c: SerialConfig, timeout=0.2):
+def connect_to_port(c: SerialConfig, timeout : float=0.2) -> serial.Serial:
     bytesize = {8: serial.EIGHTBITS}[c.data]
     parity = {
         'None': serial.PARITY_NONE,

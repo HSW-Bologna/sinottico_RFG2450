@@ -1,5 +1,5 @@
 from enum import Enum
-import PySimpleGUI as sg # type: ignore
+import PySimpleGUI as sg
 from ..utils.serialutils import serialPorts
 from ..model import *
 

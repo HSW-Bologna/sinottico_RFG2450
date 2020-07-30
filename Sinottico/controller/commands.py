@@ -49,7 +49,7 @@ class Command(ABC):
         pass
 
     def result(self) -> GuiMessage:
-        return None
+        pass
 
 
 class ArduinoTemperature(Command):
@@ -88,7 +88,7 @@ class CmdGetSerialNumber(Command):
         self.serialNumber = '0000000'
 
     def commandString(self) -> str:
-        return "Read_SN"
+        return "Read_SN" + self._ending
 
     def parseResponse(self, response: str) -> bool:
         if res := parseSerialNumber(response):
@@ -107,7 +107,7 @@ class CmdGetMode(Command):
         self.mode = None
 
     def commandString(self) -> str:
-        return "Read_MODE"
+        return "Read_MODE" + self._ending
 
     def parseResponse(self, response: str) -> bool:
         if response.startswith("MODE,") and response.endswith("\r\n"):
@@ -128,7 +128,7 @@ class CmdGetLog(Command):
         self.log = ""
 
     def commandString(self) -> str:
-        return "Read_LOG"
+        return "Read_LOG" + self._ending
 
     def specialParse(self, response: str):
         parts = response.split("\r\n")
@@ -168,7 +168,7 @@ class CmdGetPower(Command):
         self.temp = 0
 
     def commandString(self) -> str:
-        return "Read_PAR"
+        return "Read_PAR" + self._ending
 
     def parseResponse(self, response: str) -> bool:
         if res := parsePar(response):
@@ -186,7 +186,7 @@ class CmdGetRevision(Command):
         self.revision = ''
 
     def commandString(self) -> str:
-        return "Read_REV"
+        return "Read_REV" + self._ending
 
     def parseResponse(self, response: str) -> bool:
         if 'RM' in response and 'FW' in response:
@@ -205,7 +205,7 @@ class CmdGetAttenuation(Command):
         self.att = 0
 
     def commandString(self) -> str:
-        return "Read_ATT"
+        return "Read_ATT" + self._ending
 
     def parseResponse(self, response: str) -> bool:
         if response.startswith("ATT,") and response.endswith(",dB\r\n"):
@@ -225,7 +225,7 @@ class CmdSetAttenuation(CmdSet):
         self.att = attenuation
 
     def commandString(self) -> str:
-        return "Set_ATT,{:2f}".format(self.att)
+        return "Set_ATT,{:2f}".format(self.att) + self._ending
 
 
 class CmdSetOutput(CmdSet):
@@ -234,7 +234,7 @@ class CmdSetOutput(CmdSet):
         self.out = output
 
     def commandString(self) -> str:
-        return "Set_TOP,{}".format(self.out)
+        return "Set_TOP,{}".format(self.out) + self._ending
 
 
 class CmdGetOutput(Command):
@@ -244,7 +244,7 @@ class CmdGetOutput(Command):
         self.pow = 0
 
     def commandString(self) -> str:
-        return "Read_TOP"
+        return "Read_TOP" + self._ending
 
     def parseResponse(self, response: str) -> bool:
         if response.startswith("TOP,") and response.endswith(",W\r\n"):
@@ -264,7 +264,7 @@ class CmdSetMode(CmdSet):
         self._error = False
 
     def commandString(self) -> str:
-        return "Set_MODE,{}".format(self.mode)
+        return "Set_MODE,{}".format(self.mode) + self._ending
 
 
 class CmdSetFrequency(CmdSet):
@@ -274,7 +274,7 @@ class CmdSetFrequency(CmdSet):
         self._error = False
 
     def commandString(self) -> str:
-        return "Set_FRQ,{}".format(self.freq)
+        return "Set_FRQ,{}".format(self.freq) + self._ending
 
 
 class CmdAny(Command):
@@ -283,7 +283,7 @@ class CmdAny(Command):
         self.cmd = cmd
 
     def commandString(self) -> str:
-        return self.cmd
+        return self.cmd + self._ending
 
     def parseResponse(self, response: str) -> bool:
         return True
