@@ -1,5 +1,5 @@
 import sys
-import serial  # type: ignore
+import serial
 import os
 import queue
 import threading

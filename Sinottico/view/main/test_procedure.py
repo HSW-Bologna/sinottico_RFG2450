@@ -9,7 +9,7 @@ import re
 
 from .elements import Id
 from ..popups import *
-from ...model import WorkMessage, GuiMessage, ArduinoMessage
+from ...model import WorkMessage, GuiMessage, ArduinoMessage, DatiPotenza
 from ...utils.excelabstraction import CustomExcelWorkbookBecauseWindowsSucks
 from ...controller.commands import parsePar
 
@@ -17,31 +17,12 @@ TMARGIN = 5
 ATTENUATION = 32
 
 
-def saveData(wb, data1, data2, destination, serial, ver):
-    def cellId(x, y): return "{}{}".format(chr(y), x)
-
+def saveData(wb, data, destination, serial, ver):
     wb['C3'] = serial
     wb['C4'] = datetime.date.today().strftime("%d/%m/%Y")
     wb['C5'] = datetime.datetime.now().strftime("%I:%M:%S %p")
     wb['C6'] = ver
-
-    for i in range(2):
-        d = [data1, data2][i]
-
-        for t in [25, 45]:
-            srow = [11, 47][i]
-            if i == 1 and t == 45:
-                scol = 72
-            else:
-                scol = {25: 66, 45: 70}[t]
-
-            for k in d[t].keys():
-                wb[cellId(srow, 65)] = k
-                wb[cellId(srow, scol)] = d[t][k][0]
-                wb[cellId(srow, scol + 1)] = d[t][k][1]
-                wb[cellId(srow, scol + 2)] = d[t][k][2]
-                srow += 1
-
+    wb.write_data(data)
     wb.save(destination)
 
 
@@ -89,14 +70,14 @@ def sendCommand(msg, m: SimpleNamespace, w):
             pass
 
 
-def automatedTestProcedure(m,
-                           w,
-                           template,
-                           destination,
-                           temp_bassa=23,
-                           temp_alta=43):
+def automatedTestProcedure(m : SimpleNamespace,
+                           w : sg.Window,
+                           template : str,
+                           destination : str,
+                           temp_bassa : int=23,
+                           temp_alta : int=43):
 
-    def readParameters(t, m, w):
+    def readParameters(t : int, m : SimpleNamespace, w : sg.Window):
         assert(t == 25 or t == 45)
 
         while True:
@@ -141,7 +122,7 @@ def automatedTestProcedure(m,
         except ValueError:  # Ho estratto i valori come puramente numerici da una regex, non dovrebbe succedere
             return False
 
-    def firstTest(temperature, m, w, data):
+    def firstTest(temperature : int, m : SimpleNamespace, w : sg.Window):
         assert(temperature == 25 or temperature == 45)
         attenuation = ATTENUATION
 
@@ -152,8 +133,7 @@ def automatedTestProcedure(m,
             }[temperature]))
 
         while attenuation >= 0:
-            if temperature in data.keys(
-            ) and attenuation in data[temperature].keys():
+            if attenuation in m.collected_data.diretta[temperature].keys():
                 attenuation -= 1
                 continue
             else:
@@ -178,15 +158,12 @@ def automatedTestProcedure(m,
 
         while attenuation >= 0:
             if readings := readParameters(temperature, m, w):
-                if not temperature in data.keys():
-                    data[temperature] = {}
-
                 _, values = w.Read(timeout=0)
                 k = float(values[Id.K])
                 adjusted = .5 * ((readings[0] * k) / .5)
                 adjusted = adjustPopup(adjusted)
 
-                data[temperature][attenuation] = [
+                m.collected_data.diretta[temperature][attenuation] = [
                     readings[1], readings[3], adjusted
                 ]
             else:
@@ -204,7 +181,7 @@ def automatedTestProcedure(m,
 
         return True
 
-    def secondTest(temperature, m, w, data):
+    def secondTest(temperature : int, m : SimpleNamespace, w : sg.Window):
         assert(temperature == 25 or temperature == 45)
         attenuation = ATTENUATION
         first = True
@@ -216,8 +193,7 @@ def automatedTestProcedure(m,
             }[temperature]))
 
         while attenuation >= 0:
-            if temperature in data.keys(
-            ) and attenuation in data[temperature].keys():
+            if attenuation in m.collected_data.riflessa[temperature].keys():
                 attenuation -= 1
                 continue
             else:
@@ -245,7 +221,7 @@ def automatedTestProcedure(m,
             else:
                 first = False
 
-            delay = 0
+            delay : float = 0
             while True:
                 time.sleep(delay)
                 delay = 0.5
@@ -265,12 +241,9 @@ def automatedTestProcedure(m,
                         else:
                             return False
 
-                    if not temperature in data.keys():
-                        data[temperature] = {}
-
-                    data[temperature][attenuation] = [
+                    m.collected_data.riflessa[temperature][attenuation] = (
                         values[1], values[2], values[3]
-                    ]
+                    )
                     break
                 else:
                     return False
@@ -286,13 +259,6 @@ def automatedTestProcedure(m,
         return True
 
     wb = CustomExcelWorkbookBecauseWindowsSucks(template)
-
-    if m.collectedData:
-        data1, data2 = m.collectedData
-    else:
-        data1 = {}
-        data2 = {}
-        m.collectedData = (data1, data2)
 
     w[Id.STATUS].Update(
         "Procedura di acquisizione automatica dei dati in corso...")
@@ -321,19 +287,19 @@ def automatedTestProcedure(m,
         w[Id.STATUS].Update("Errore di comunicazione!")
         return True
 
-    if not firstTest(25, m, w, data1):
+    if not firstTest(25, m, w):
         w[Id.STATUS].Update("Procedura interrotta!")
         return True
 
-    if not secondTest(25, m, w, data2):
+    if not secondTest(25, m, w):
         w[Id.STATUS].Update("Procedura interrotta!")
         return True
 
-    if not firstTest(45, m, w, data1):
+    if not firstTest(45, m, w):
         w[Id.STATUS].Update("Procedura interrotta!")
         return True
 
-    if not secondTest(45, m, w, data2):
+    if not secondTest(45, m, w):
         w[Id.STATUS].Update("Procedura interrotta!")
         return True
 
@@ -347,10 +313,10 @@ def automatedTestProcedure(m,
     if res := yesNoPopup("Procedura terminata. Salvare i dati?"):
         template = "{}_{}.xlsx".format(
             os.path.basename(template).replace(".xlsx", ""), serialNumber)
-        saveData(wb, data1, data2,
+        saveData(wb, m.collected_data,
                  os.path.join(os.path.abspath(destination), template),
                  serialNumber, swVer)
 
-    m.collectedData = None
+    m.collected_data = DatiPotenza()
     w[Id.STATUS].Update("Procedura terminata!")
     return False

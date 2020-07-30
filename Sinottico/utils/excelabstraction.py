@@ -56,12 +56,67 @@ class CustomExcelWorkbookBecauseWindowsSucks:
         else:
             self.ws[id] = value
 
+
+    def __getitem__(self, id, value):
+        if self.native:
+            return self.ws.Range(id).Value
+        else:
+            return self.ws[id]
+
+
     def __del__(self):
         if self.native and self.excel:
             self.excel.quit()
+
 
     def save(self, filename):
         if self.native:
             self.wb.SaveAs(os.path.abspath(filename))
         else:
             self.wb.save(filename=filename)
+
+
+    def cell_id(self, x, y): 
+        return "{}{}".format(chr(y), x)
+
+
+    def read_data(self):
+        data = DatiPotenza()
+
+        for t in [25, 45]:
+            for a in range(1, 33):
+                data.diretta[t][a] = (self[self.index_to_cell_diretta(t, a, 0)],
+                                        self[self.index_to_cell_diretta(t, a, 1)],
+                                        self[self.index_to_cell_diretta(t, a, 2)])
+
+        for t in [25, 45]:
+            for a in range(1, 33):
+                data.riflessa[t][a] = (self[self.index_to_cell_riflessa(t, a, 0)],
+                                        self[self.index_to_cell_riflessa(t, a, 1)],
+                                        self[self.index_to_cell_riflessa(t, a, 2)])
+
+        return data
+
+
+    def write_data(self, data):
+        for t in [25, 45]:
+            for a in range(1, 33):
+                self[self.index_to_cell_diretta(t,a,0)] = data.diretta[t][a][0]
+                self[self.index_to_cell_diretta(t,a,1)] = data.diretta[t][a][1]
+                self[self.index_to_cell_diretta(t,a,2)] = data.diretta[t][a][2]
+
+        for t in [25, 45]:
+            for a in range(1, 33):
+                self[self.index_to_cell_riflessa(t,a,0)] = data.riflessa[t][a][0]
+                self[self.index_to_cell_riflessa(t,a,1)] = data.riflessa[t][a][1]
+                self[self.index_to_cell_riflessa(t,a,2)] = data.riflessa[t][a][2]
+
+
+    def index_to_cell_riflessa(self, temp, att, index):
+        scol = {25: 66, 45: 72}[t] + index
+        return self.cell_id(47, scol)
+
+
+    def index_to_cell_diretta(self, temp, att, index):
+        scol = {25: 66, 45: 70}[t] + index
+        return self.cell_id(11, scol)

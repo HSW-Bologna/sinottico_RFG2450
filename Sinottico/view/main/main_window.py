@@ -8,12 +8,10 @@ from types import SimpleNamespace
 
 from ..popups import validate_float_lask
 from ..settings import settings_window
-from ...resources import resourcePath
 from ...model import *
 from .elements import Id
 from .test_procedure import automatedTestProcedure
-
-MODES = {"Modalita' {}".format(v): v for v in range(4)}
+from . import tab_informazioni, tab_calibrazione, tab_dati, tab_verbale, tab_terminale
 
 
 def explicit(s):
@@ -70,8 +68,8 @@ def startAutomatedTest(m, w, template, destination):
     [w[x].Update(disabled=False) for x in elements]
 
 
-def selectMode(w, mode):
-    revmodes = {v: k for k, v in MODES.items()}
+def select_mode(w, mode):
+    revmodes = {v: k for k, v in tab_informazioni.MODES.items()}
     modes = [Id.TABMODE1, Id.TABMODE2, Id.TABMODE3, Id.TABMODE4]
     [w[x].Update(disabled=True) for x in modes]
     w[modes[mode]].Update(disabled=False)
@@ -79,167 +77,19 @@ def selectMode(w, mode):
     w[Id.MODES].Update(value=revmodes[mode])
 
 
-def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
+def main_window(workq: Queue, ardq: Queue, guiq: Queue):
     sg.theme("DefaultNoMoreNagging")
     oldkvalue = ""
     m: SimpleNamespace = SimpleNamespace(connected=False,
                                          mode=0,
                                          timestamp=0,
                                          tab=0,
-                                         collectedData=None,
+                                         collected_data=DatiPotenza(),
                                          workq=workq,
                                          ardq=ardq,
                                          guiq=guiq,
                                          restart=False,
-                                         arudino_connected=False,
                                          data_acquisition=False)
-
-    tab1 = [
-        [
-            sg.Frame("Informazioni",
-                     [[sg.Sizer(500, 0)],
-                      [sg.Text("Numero di serie: "),
-                       sg.Input(key=Id.SN)],
-                      [sg.Text("", key=Id.REVISION, size=(40, None))],
-                      [sg.Button("Richiedi", key=Id.INFO)]],
-                     pad=(0, 10))
-        ],
-        [
-            sg.Frame("Modalita'", [
-                [
-                    sg.Combo(list(MODES.keys()),
-                             key=Id.MODES,
-                             enable_events=True,
-                             size=(20, 1),
-                             readonly=True)
-                ],
-                [
-                    sg.TabGroup([[
-                        sg.Tab("", [[sg.Sizer(500, 0)],
-                                    [
-                                        sg.Sizer(0, 80),
-                                        sg.Text("Attenuazione: 0.00",
-                                                size=(20, 1),
-                                                key=Id.ATTLBL),
-                                        sg.Slider(range=(0, 3200),
-                                                  resolution=25,
-                                                  disable_number_display=True,
-                                                  tooltip="Attenuazione",
-                                                  orientation="horizontal",
-                                                  enable_events=True,
-                                                  key=Id.DIGATT)
-                                    ]],
-                               key=Id.TABMODE1,
-                               disabled=True,
-                               visible=False),
-                        sg.Tab("", [[
-                            sg.Sizer(0, 80),
-                            sg.Text("Attenuazione: ", key=Id.ATT, size=(32, 1))
-                        ]],
-                               key=Id.TABMODE2,
-                               disabled=True,
-                               visible=False),
-                        sg.Tab("", [[
-                            sg.Sizer(0, 80),
-                            sg.Text(
-                                "Potenza: 0 W", size=(20, 1), key=Id.POWLBL),
-                            sg.Slider(range=(0, 300),
-                                      orientation="horizontal",
-                                      enable_events=True,
-                                      disable_number_display=True,
-                                      key=Id.DIGPOW)
-                        ]],
-                               key=Id.TABMODE3,
-                               disabled=True,
-                               visible=False),
-                        sg.Tab("", [[
-                            sg.Sizer(0, 80),
-                            sg.Text("Potenza: ", key=Id.POW, size=(32, 1))
-                        ]],
-                               key=Id.TABMODE4,
-                               disabled=True,
-                               visible=False),
-                    ]],
-                                pad=(0, 20))
-                ],
-            ]),
-        ],
-        [
-            sg.Frame("Parametri", [
-                [sg.Sizer(500, 0)],
-                [sg.Text("Potenza diretta:", key=Id.DIRPWR, size=(32, 1))],
-                [sg.Text("Potenza riflessa:", key=Id.REFPWR, size=(32, 1))],
-                [
-                    sg.Text("Temperatura: ", size=(24, 1), key=Id.TEMP),
-                    sg.Text("VSWR: ", size=(12, 1), key=Id.SWR),
-                ],
-            ],
-                     pad=(0, 20))
-        ],
-    ]
-
-    tab2: List[List[sg.Element]] = [
-        [
-            sg.Input("", size=(48, 1), key=Id.TEMPLATE),
-            sg.FileBrowse("Template",
-                          file_types=(('Excel files', "*.xlsx"), ),
-                          size=(16, 1),
-                          key=Id.TEMPBTN),
-        ],
-        [
-            sg.Input("", size=(48, 1), key=Id.DESTINATION),
-            sg.FolderBrowse("Destinazione", size=(16, 1), key=Id.DESTBTN),
-        ],
-        [
-            sg.Spin(["{:.2f}".format(x / 100.) for x in range(5, 155, 5)],
-                    initial_value="1.00",
-                    change_submits=True,
-                    size=(5, 1),
-                    key=Id.K),
-            sg.Text("Coefficiente K", size=(16, 1)),
-        ],
-        [
-            sg.Spin([x for x in range(1, 80)],
-                    initial_value="23",
-                    change_submits=True,
-                    size=(5, 1),
-                    key=Id.TEMP_LOW),
-            sg.Text("Temperatura bassa", size=(25, 1)),
-            sg.Spin([x for x in range(1, 80)],
-                    initial_value="43",
-                    change_submits=True,
-                    size=(5, 1),
-                    key=Id.TEMP_HIGH),
-            sg.Text("Temperatura alta", size=(25, 1)),
-        ],
-        [
-            sg.Button("Avvio Procedura", key=Id.AUTOTEST),
-            sg.Button("Riprendi", key=Id.RETRYAUTOTEST)
-        ],
-        [
-            sg.Multiline(disabled=True,
-                         autoscroll=True,
-                         key=Id.LOGAUTO,
-                         size=(68, 15))
-        ],
-    ]
-
-    tab3: List[List[sg.Element]] = [[]]
-
-    tab4 = [
-        [sg.Text("Ore di lavoro:", size=(40, 1), key=Id.LOGHOURS)],
-        [sg.Multiline(size=(68, 20), disabled=True, key=Id.LOGLOG)],
-    ]
-
-    tab5 = [[
-        sg.Multiline(size=(68, 20), key=Id.LOG, autoscroll=True, disabled=True)
-    ],
-            [
-                sg.Input(size=(64, None), key=Id.INPUT),
-                sg.Button(image_filename=resourcePath('send.png'),
-                          bind_return_key=True,
-                          key=Id.SEND)
-            ]]
 
     layout = [[
         sg.Button(
@@ -248,31 +98,31 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
         ),
         sg.Button('Connetti', key=Id.CONNECT),
         sg.Text('RFG2450', key=Id.CONNECT_STATUS1, size=(32, 1)),
-    ],
-              [
-                  sg.Button(
-                      'Impostazioni',
-                      key=Id.SETTINGS_ARDUINO,
-                  ),
-                  sg.Button('Connetti', key=Id.CONNECT_ARDUINO),
-                  sg.Text('Arduino', key=Id.CONNECT_STATUS2, size=(32, 1)),
-              ],
-              [
-                  sg.TabGroup([[
-                      sg.Tab("Informazioni", tab1, key=Id.TAB1),
-                      sg.Tab("Acquisizione Dati", tab2, key=Id.TAB2),
-                      sg.Tab("Calibrazione", tab3, key=Id.TAB3),
-                      sg.Tab("Verbale", tab4, key=Id.TAB4),
-                      sg.Tab("Terminale", tab5, key=Id.TAB5)
-                  ]],
-                              key=Id.MAINTAB,
-                              enable_events=True)
-              ],
-              [
-                  sg.Text("Selezionare una porta e connettersi",
-                          key=Id.STATUS,
-                          size=(64, 1))
-              ]]
+        ],
+        [
+            sg.Button(
+                'Impostazioni',
+                key=Id.SETTINGS_ARDUINO,
+            ),
+            sg.Button('Connetti', key=Id.CONNECT_ARDUINO),
+            sg.Text('Arduino', key=Id.CONNECT_STATUS2, size=(32, 1)),
+        ],
+        [
+            sg.TabGroup([[
+                sg.Tab("Informazioni", tab_informazioni.tab, key=Id.TAB1),
+                sg.Tab("Acquisizione Dati", tab_dati.tab, key=Id.TAB2),
+                sg.Tab("Calibrazione", tab_calibrazione.tab, key=Id.TAB3),
+                sg.Tab("Verbale", tab_verbale.tab, key=Id.TAB4),
+                sg.Tab("Terminale", tab_terminale.tab, key=Id.TAB5)
+            ]],
+                        key=Id.MAINTAB,
+                        enable_events=True)
+        ],
+        [
+            sg.Text("Selezionare una porta e connettersi",
+                    key=Id.STATUS,
+                    size=(64, 1))
+        ]]
 
     # Create the Window
     window = sg.Window('Collaudo RFG2450',
@@ -329,9 +179,7 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
             m.workq.put(WorkMessage.GETINFO())
         elif event == Id.MODES:
             element, value = window[event], values[event]
-            m.workq.put(WorkMessage.MODE(MODES[value]))
-        elif event == Id.TIMEOUT:
-            pass
+            m.workq.put(WorkMessage.MODE(tab_informazioni.MODES[value]))
         elif event == Id.DIGATT:
             value = values[event] / 100.
             window[Id.ATTLBL].Update("Attenuazione: {:.2f}".format(value))
@@ -357,9 +205,11 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
             window[Id.TEMPLATE].Update(values[event])
         elif event in [Id.AUTOTEST, Id.RETRYAUTOTEST]:
             if event == Id.AUTOTEST:
-                m.collectedData = None
+                m.collected_data = DatiPotenza()
             startAutomatedTest(m, window, values[Id.TEMPLATE],
                                values[Id.DESTINATION])
+        elif event == Id.TIMEOUT:
+            pass
 
         if m.restart:
             m.restart = False
@@ -395,7 +245,7 @@ def mainWindow(workq: Queue, ardq: Queue, guiq: Queue):
 
             def setMode(m: SimpleNamespace, x):
                 m.mode = x
-                selectMode(window, x),
+                select_mode(window, x),
 
             def reconnected(m: SimpleNamespace, window, template, destination):
                 connected_rfg(m)

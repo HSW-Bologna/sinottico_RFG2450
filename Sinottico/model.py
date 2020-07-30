@@ -1,6 +1,11 @@
 from adt import adt, Case
 from typing import List
 
+class DatiPotenza:
+    def __init__(self):
+        self.diretta = {25 : {}, 45 : {}}
+        self.riflessa = {25 : {}, 45 : {}}
+
 
 class SerialConfig:
     def __init__(self,

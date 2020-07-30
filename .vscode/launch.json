@@ -10,8 +10,8 @@
       "request": "launch",
       "program": "${workspaceFolder}/main.py",
       "console": "internalConsole",
-      "stopOnEntry": true
-      //"pythonPath": "${workspaceFolder}/.env/bin/python"
+      "stopOnEntry": true,
+      "pythonPath": "${workspaceFolder}/.env/bin/python"
     }
   ]
 }

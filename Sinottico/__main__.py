@@ -3,7 +3,7 @@ import threading
 import sys
 from io import TextIOBase
 
-from .view.main.main_window import mainWindow
+from .view.main.main_window import main_window
 from .controller.controller import controllerTask
 from .controller.arduino import controller_arduino_task
 
@@ -34,7 +34,7 @@ def main():
     t.daemon = True
     t.start()
 
-    mainWindow(workq, ardq, guiq)
+    main_window(workq, ardq, guiq)
 
 
 if __name__ == '__main__':
