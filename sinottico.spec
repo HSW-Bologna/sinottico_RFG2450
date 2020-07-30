@@ -32,4 +32,5 @@ exe = EXE(pyz,
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
+          icon="rm.ico",
           console=False)

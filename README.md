@@ -16,4 +16,5 @@ Una volta scaricata la repository, il programma puo' essere eseguito lanciando l
     - Raccogliere tutte le variabili in delle strutture
     - Smettere di usare implicitamente '\r\n' come fine riga, sfruttare l'opzione configurata
     - Riordinare i metodi per estrarre il fine riga dai comandi
-    - Aggiungere la funzione della barra di calibrazione
+    - Aggiungere la funzione della tab di calibrazione: apri un foglio di Excel, estrai i dati letti e genera le possibili combinazioni dei parametri A, B, C, D; calcola poi il delta tra le funzioni registrate e calcolate; organizza i risultati in ordine, mostrando i primi 10 piu' corretti
+    - Disegnare un gauge per la potenza per la prima tab
