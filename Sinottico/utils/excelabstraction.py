@@ -100,23 +100,35 @@ class CustomExcelWorkbookBecauseWindowsSucks:
 
     def write_data(self, data):
         for t in [25, 45]:
-            for a in range(1, 33):
+            for a in data.diretta[t].keys():
+                self[self.index_to_cell_diretta_base(a)] = a
                 self[self.index_to_cell_diretta(t,a,0)] = data.diretta[t][a][0]
                 self[self.index_to_cell_diretta(t,a,1)] = data.diretta[t][a][1]
                 self[self.index_to_cell_diretta(t,a,2)] = data.diretta[t][a][2]
 
         for t in [25, 45]:
-            for a in range(1, 33):
+            for a in data.riflessa[t].keys():
+                self[self.index_to_cell_riflessa_base(a)] = a
                 self[self.index_to_cell_riflessa(t,a,0)] = data.riflessa[t][a][0]
                 self[self.index_to_cell_riflessa(t,a,1)] = data.riflessa[t][a][1]
                 self[self.index_to_cell_riflessa(t,a,2)] = data.riflessa[t][a][2]
 
 
-    def index_to_cell_riflessa(self, temp, att, index):
-        scol = {25: 66, 45: 72}[t] + index
-        return self.cell_id(47, scol)
+    def index_to_cell_riflessa(self, temp : int, att : int, index : int):
+        scol = {25: 66, 45: 72}[temp] + index
+        if att > 32:
+            att = 32
+        return self.cell_id(47 + 32 - att, scol)
 
 
-    def index_to_cell_diretta(self, temp, att, index):
-        scol = {25: 66, 45: 70}[t] + index
-        return self.cell_id(11, scol)
+    def index_to_cell_diretta(self, temp : int, att : int, index : int):
+        scol = {25: 66, 45: 70}[temp] + index
+        if att > 32:
+            att = 32
+        return self.cell_id(11 + 32 - att, scol)
+
+    def index_to_cell_diretta_base(self, att : int):
+        return self.cell_id(11 + 32 - att, 65)
+
+    def index_to_cell_riflessa_base(self, att : int):
+        return self.cell_id(47 + 32 - att, 65)

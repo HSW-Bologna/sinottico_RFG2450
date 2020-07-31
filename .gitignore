@@ -4,3 +4,4 @@ dist
 *.pyc
 .mypy_cache
 tmp
+trace.txt

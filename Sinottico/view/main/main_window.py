@@ -52,7 +52,7 @@ def calculateVSWR(pref, pfwr):
 
 def startAutomatedTest(m, w, template, destination):
     elements = [
-        Id.SETTINGS, Id.CONNECT, Id.CONNECT_ARDUINO, Id.TAB1, Id.TAB3, Id.TAB4,
+        Id.SETTINGS, Id.SETTINGS_ARDUINO, Id.CONNECT, Id.CONNECT_ARDUINO, Id.TAB1, Id.TAB3, Id.TAB4,
         Id.TAB5, Id.AUTOTEST, Id.RETRYAUTOTEST, Id.TEMP_HIGH, Id.TEMP_LOW, Id.K
     ]
     [w[x].Update(disabled=True) for x in elements]

@@ -13,8 +13,8 @@ from ...model import WorkMessage, GuiMessage, ArduinoMessage, DatiPotenza
 from ...utils.excelabstraction import CustomExcelWorkbookBecauseWindowsSucks
 from ...controller.commands import parsePar
 
-TMARGIN = 5
-ATTENUATION = 32
+TMARGIN = 50
+ATTENUATION = 2
 
 
 def saveData(wb, data, destination, serial, ver):
@@ -229,7 +229,7 @@ def automatedTestProcedure(m : SimpleNamespace,
                 if values := readParameters(temperature, m, w):
                     _, adcf, adcr, _ = values
 
-                    if adcf == 0 and adcr == 0:
+                    if adcf == 0 and adcr == 0 and False:
                         if sg.PopupOKCancel(
                                 "Il dispositivo e' in protezione; riprovare?",
                                 keep_on_top=True,

@@ -18,6 +18,10 @@ class LazyWriter(TextIOBase):
             self.file = open(self.filepath, "w")
         self.file.write(stuff)
 
+    def __del__(self):
+        if self.file:
+            self.file.close()
+
 
 def main():
     sys.stderr = LazyWriter("trace.txt")
