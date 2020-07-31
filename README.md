@@ -1,4 +1,3 @@
-
 # Sinottico per Telemetria e Collaudo di Dispositivi RFG2450
 
 Modulo Python implementante una semplice interfaccia grafica per il collaudo di dispositivi RFG2450.
@@ -14,4 +13,6 @@ Una volta scaricata la repository, il programma puo' essere eseguito lanciando l
 # TODO
 
     - Raccogliere tutte le variabili in delle strutture
-    - Aggiungere la funzione della barra di calibrazione
+    - Aggiungere la funzione della tab di calibrazione: apri un foglio di Excel, estrai i dati letti e genera le possibili combinazioni dei parametri A, B, C, D; calcola poi il delta tra le funzioni registrate e calcolate; organizza i risultati in ordine, mostrando i primi 10 piu' corretti
+    - Disegnare un gauge per la potenza per la prima tab
+    - Usa il Pane anziche' le tab

@@ -50,3 +50,5 @@ class Id(Enum):
     AUTOTEST = auto()
     RETRYAUTOTEST = auto()
     K = auto()
+    LOADDATA = auto()
+    LOADDATABTN = auto()

@@ -98,7 +98,7 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
         ),
         sg.Button('Connetti', key=Id.CONNECT),
         sg.Text('RFG2450', key=Id.CONNECT_STATUS1, size=(32, 1)),
-        ],
+    ],
         [
             sg.Button(
                 'Impostazioni',
@@ -106,7 +106,7 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
             ),
             sg.Button('Connetti', key=Id.CONNECT_ARDUINO),
             sg.Text('Arduino', key=Id.CONNECT_STATUS2, size=(32, 1)),
-        ],
+    ],
         [
             sg.TabGroup([[
                 sg.Tab("Informazioni", tab_informazioni.tab, key=Id.TAB1),
@@ -115,14 +115,14 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                 sg.Tab("Verbale", tab_verbale.tab, key=Id.TAB4),
                 sg.Tab("Terminale", tab_terminale.tab, key=Id.TAB5)
             ]],
-                        key=Id.MAINTAB,
-                        enable_events=True)
-        ],
+                key=Id.MAINTAB,
+                enable_events=True)
+    ],
         [
             sg.Text("Selezionare una porta e connettersi",
                     key=Id.STATUS,
                     size=(64, 1))
-        ]]
+    ]]
 
     # Create the Window
     window = sg.Window('Collaudo RFG2450',
@@ -157,7 +157,8 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                 Id.SETTINGS_ARDUINO: config_arduino
             }
             c = configs[event]
-            otherc = configs[{Id.SETTINGS : Id.SETTINGS_ARDUINO, Id.SETTINGS_ARDUINO : Id.SETTINGS}[event]]
+            otherc = configs[{Id.SETTINGS: Id.SETTINGS_ARDUINO,
+                              Id.SETTINGS_ARDUINO: Id.SETTINGS}[event]]
             c.set_to(settings_window(c, avoid=[otherc.port]))
             if c.port:
                 text = "{} {},{}{}{}".format(c.port, c.baud, c.data,
