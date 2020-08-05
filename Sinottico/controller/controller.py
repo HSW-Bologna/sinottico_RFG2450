@@ -6,11 +6,24 @@ import threading
 from enum import Enum
 import time
 from typing import List
+from dataclasses import dataclass
+from multiprocessing import Pool
+
 
 from ..utils.serialutils import *
 from ..resources import resourcePath
 from ..model import *
 from .commands import *
+from .power import launch_find_best_combinations_direct, launch_find_best_combinations_reflex
+
+
+@dataclass
+class Model:
+    port: serial.Serial
+    cmdq: queue.Queue
+    config: SerialConfig
+    lastmsgts: float
+    mode: int
 
 
 def elapsed(start, delay):
@@ -26,14 +39,8 @@ def clearq(q: queue.Queue):
 
 
 def controllerTask(guiq: queue.Queue, workq: queue.Queue):
-    port: serial.Serial = None
-    cmdq: queue.Queue = queue.Queue()
-    config: SerialConfig = SerialConfig()
-    currentCmd = None
-    error: bool = False
-    lastmsgts: float = 0
-
-    mode: int = 0
+    model: Model = Model(port=None, cmdq=queue.Queue(),
+                         config=SerialConfig(), lastmsgts=0, mode=0)
 
     while True:
         try:
@@ -51,7 +58,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                             guiq.put(GuiMessage.SEND(tosend.decode()))
                         port.write(tosend)
                         time.sleep(0.02)  # aspetta una risposta
-                        #read = port.read_until(cmd.end_bytes()) # alcuni comandi prevedono due righe di risposta
+                        # read = port.read_until(cmd.end_bytes()) # alcuni comandi prevedono due righe di risposta
                         read = port.read(port.in_waiting)
                     except serial.SerialException as e:
                         port.close()
@@ -79,31 +86,31 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 return
 
             def newPort(c: SerialConfig):
-                nonlocal port, cmdq, guiq
-                clearq(cmdq)
+                nonlocal model, guiq
+                clearq(model.cmdq)
                 if c.port:
-                    config = c
-                    if port:
-                        port.close()
+                    model.config = c
+                    if model.port:
+                        model.port.close()
 
                     try:
-                        port = connect_to_port(c)
+                        model.port = connect_to_port(c)
                         guiq.put(GuiMessage.CONNECTED_RFG())
-                        #cmdq.put(CmdGetLog())
+                        # cmdq.put(CmdGetLog())
                     except:
                         guiq.put(GuiMessage.DISCONNECTED_RFG())
 
                 else:
-                    port = None
+                    model.port = None
 
             def getInfo():
-                nonlocal cmdq
-                cmdq.put(CmdGetSerialNumber())
-                cmdq.put(CmdGetRevision())
+                nonlocal model
+                model.cmdq.put(CmdGetSerialNumber())
+                model.cmdq.put(CmdGetRevision())
 
             def setMode(cmdq, x):
-                nonlocal mode
-                mode = x
+                nonlocal model
+                model.mode = x
                 cmdq.put(CmdSetMode(x))
 
                 if x == 0:
@@ -115,8 +122,8 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 cmdq.put(CmdGetMode())
 
             def getLog():
-                nonlocal cmdq
-                cmdq.put(CmdGetLog())
+                nonlocal model
+                model.cmdq.put(CmdGetLog())
 
             def handshake(cmdq):
                 cmdq.put(CmdSetMode(2))
@@ -131,37 +138,41 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
 
             msg.match(
                 newport=newPort,
-                send=lambda x: cmdq.put(CmdAny(x)),
+                send=lambda x: model.cmdq.put(CmdAny(x)),
                 getinfo=getInfo,
-                mode=lambda x: setMode(cmdq, x),
-                att=lambda x: cmdq.put(CmdSetAttenuation(x)),
-                getatt=lambda: cmdq.put(CmdGetAttenuation()),
-                output=lambda x: cmdq.put(CmdSetOutput(x)),
-                getoutput=lambda: cmdq.put(CmdGetOutput()),
+                mode=lambda x: setMode(model.cmdq, x),
+                att=lambda x: model.cmdq.put(CmdSetAttenuation(x)),
+                getatt=lambda: model.cmdq.put(CmdGetAttenuation()),
+                output=lambda x: model.cmdq.put(CmdSetOutput(x)),
+                getoutput=lambda: model.cmdq.put(CmdGetOutput()),
                 log=getLog,
-                setfreq=lambda x: cmdq.put(CmdSetFrequency(x, hidden=False)),
-                handshake=lambda: handshake(cmdq),
-                getpower=lambda: cmdq.put(CmdGetPower()),
+                setfreq=lambda x: model.cmdq.put(
+                    CmdSetFrequency(x, hidden=False)),
+                handshake=lambda: handshake(model.cmdq),
+                getpower=lambda: model.cmdq.put(CmdGetPower()),
+                find_direct_combinations=lambda x: launch_find_best_combinations_direct(
+                    x, guiq),
+                find_reflex_combinations=lambda pars, x: launch_find_best_combinations_reflex(pars,
+                    x, guiq),
             )
         except queue.Empty:
             pass
 
-        if not port:
+        if not model.port:
             continue
-        elif not port.isOpen():
+        elif not model.port.isOpen():
             try:
-                port.open()
+                model.port.open()
                 guiq.put(GuiMessage.RECONNECTED())
-                clearq(cmdq)
-                currentCmd = None
+                clearq(model.cmdq)
             except serial.SerialException:
                 continue
 
-        if elapsed(lastmsgts, 0.05):
+        if elapsed(model.lastmsgts, 0.05):
             try:
-                cmd = cmdq.get_nowait()
-                cmd._ending = config.endStr()
-                send_command(cmd, port, guiq)
-                lastmsgts = time.time()
+                cmd = model.cmdq.get_nowait()
+                cmd._ending = model.config.endStr()
+                send_command(cmd, model.port, guiq)
+                model.lastmsgts = time.time()
             except queue.Empty:
                 pass

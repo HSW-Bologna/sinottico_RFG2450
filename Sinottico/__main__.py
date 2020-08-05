@@ -10,17 +10,14 @@ from .controller.arduino import controller_arduino_task
 
 class LazyWriter(TextIOBase):
     def __init__(self, filepath):
-        self.file = None
         self.filepath = filepath
+        self.first = True
 
     def write(self, stuff):
-        if not self.file:
-            self.file = open(self.filepath, "w")
-        self.file.write(stuff)
-
-    def __del__(self):
-        if self.file:
-            self.file.close()
+        mode = "w" if self.first else "a"
+        self.first = False
+        with open(self.filepath, mode) as f:
+            f.write(stuff)
 
 
 def main():

@@ -2,6 +2,8 @@ import sys
 import datetime
 import os
 
+from ..model import DatiPotenza
+
 #import logging
 #logging.basicConfig(filename='sinottico.log', level=logging.INFO)
 
@@ -17,6 +19,7 @@ class CustomExcelWorkbookBecauseWindowsSucks:
             self.excel.quit()
 
     def _open_excel(self, filename):
+        self.native = False
         try:
             import win32com.client
             import pywintypes
@@ -57,11 +60,11 @@ class CustomExcelWorkbookBecauseWindowsSucks:
             self.ws[id] = value
 
 
-    def __getitem__(self, id, value):
+    def __getitem__(self, id):
         if self.native:
             return self.ws.Range(id).Value
         else:
-            return self.ws[id]
+            return self.ws[id].value
 
 
     def __del__(self):
@@ -94,6 +97,8 @@ class CustomExcelWorkbookBecauseWindowsSucks:
                 data.riflessa[t][a] = (self[self.index_to_cell_riflessa(t, a, 0)],
                                         self[self.index_to_cell_riflessa(t, a, 1)],
                                         self[self.index_to_cell_riflessa(t, a, 2)])
+
+        data.ciscolatore = self["D7"]
 
         return data
 

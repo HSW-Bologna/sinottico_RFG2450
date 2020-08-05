@@ -1,10 +1,12 @@
 from adt import adt, Case
-from typing import List
+from typing import List, Dict, Tuple
+
 
 class DatiPotenza:
     def __init__(self):
-        self.diretta = {25 : {}, 45 : {}}
-        self.riflessa = {25 : {}, 45 : {}}
+        self.diretta: Dict[int, Dict[int, List[int]]] = {25: {}, 45: {}}
+        self.riflessa: Dict[int, Dict[int, List[int]]] = {25: {}, 45: {}}
+        self.ciscolatore = 0.2
 
 
 class SerialConfig:
@@ -36,7 +38,8 @@ class SerialConfig:
         return self.endBytes().decode()
 
     def set_to(self, new):
-        self.__init__(new.port, new.baud, new.data, new.stop, new.parity, new.flowctrl, new.end)
+        self.__init__(new.port, new.baud, new.data, new.stop,
+                      new.parity, new.flowctrl, new.end)
 
 
 @adt
@@ -53,6 +56,9 @@ class WorkMessage:
     LOG: Case
     SETFREQ: Case[int]
     HANDSHAKE: Case
+    FIND_DIRECT_COMBINATIONS: Case[DatiPotenza]
+    FIND_REFLEX_COMBINATIONS: Case[Tuple[int, int, int, int], DatiPotenza]
+
 
 @adt
 class ArduinoMessage:
@@ -78,3 +84,5 @@ class GuiMessage:
     DISCONNECTED_ARDUINO: Case
     MODE: Case[int]
     RECONNECTED: Case
+    DIRECT_COMBINATIONS_FOUND: Case[List]
+    REFLEX_COMBINATIONS_FOUND: Case[List]

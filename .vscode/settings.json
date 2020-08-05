@@ -1,4 +1,6 @@
 {
-    "python.pythonPath": "C:\\Users\\Maldus\\AppData\\Local\\Programs\\Python\\Python38-32\\python.exe"
-    //"python.pythonPath": ".env/bin/python"
+    "python.pythonPath": ".env/bin/python",
+    "python.formatting.provider": "autopep8",
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.terminal.activateEnvironment": true
 }

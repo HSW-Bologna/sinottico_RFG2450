@@ -7,7 +7,10 @@ block_cipher = None
 a = Analysis(['main.py'],
              pathex=['.'],
              binaries=[],
-             datas=[(join(join('Sinottico', 'assets'), 'send.png'), '.')],
+             datas=[
+                 (join(join('Sinottico', 'assets'), 'send.png'), '.'),
+                 (join(join('Sinottico', 'assets'), 'loading.gif'), '.'),
+             ],
              hiddenimports=['openpyxl'],
              hookspath=[],
              runtime_hooks=[],

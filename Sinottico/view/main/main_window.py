@@ -85,9 +85,12 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                                          timestamp=0,
                                          tab=0,
                                          collected_data=DatiPotenza(),
+                                         loaded_data=None,
+                                         workbook=None,
                                          workq=workq,
                                          ardq=ardq,
                                          guiq=guiq,
+                                         calculating=False,
                                          restart=False,
                                          data_acquisition=False)
 
@@ -111,8 +114,8 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
             sg.TabGroup([[
                 sg.Tab("Informazioni", tab_informazioni.tab, key=Id.TAB1),
                 sg.Tab("Acquisizione Dati", tab_dati.tab, key=Id.TAB2),
-                sg.Tab("Calibrazione", tab_calibrazione.tab, key=Id.TAB3),
-                sg.Tab("Verbale", tab_verbale.tab, key=Id.TAB4),
+                sg.Tab("Calibrazione", tab_calibrazione.tab(), key=Id.TAB3),
+                sg.Tab("Verbale", tab_verbale.tab(), key=Id.TAB4),
                 sg.Tab("Terminale", tab_terminale.tab, key=Id.TAB5)
             ]],
                 key=Id.MAINTAB,
@@ -200,10 +203,6 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                 }[value]
                 if value == Id.TAB4:
                     m.workq.put(WorkMessage.LOG())
-        elif event == Id.DESTBTN:
-            window[Id.DESTINATION].Update(values[event])
-        elif event == Id.TEMPBTN:
-            window[Id.TEMPLATE].Update(values[event])
         elif event in [Id.AUTOTEST, Id.RETRYAUTOTEST]:
             if event == Id.AUTOTEST:
                 m.collected_data = DatiPotenza()
@@ -211,6 +210,8 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                                values[Id.DESTINATION])
         elif event == Id.TIMEOUT:
             pass
+
+        tab_calibrazione.manage(m, event, value, window)
 
         if m.restart:
             m.restart = False
@@ -284,6 +285,8 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                     Id.LOGHOURS].Update("Ore di lavoro: {}".format(y), window[
                         Id.LOGLOG].update(z))),
                 mode=lambda x: setMode(m, x),
+                direct_combinations_found=lambda res : tab_calibrazione.direct_calculation_end(res, m, window),
+                reflex_combinations_found=lambda res : tab_calibrazione.reflex_calculation_end(res, m, window),
                 reconnected=lambda: reconnected(m, window, window[
                     Id.TEMPLATE].Get(), window[Id.DESTINATION].Get()))
 
