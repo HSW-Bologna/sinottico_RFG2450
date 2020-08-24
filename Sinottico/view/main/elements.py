@@ -66,3 +66,5 @@ class Id(Enum):
     PAR_RIF_B = auto()
     PAR_RIF_C = auto()
     PAR_RIF_D = auto()
+    SAVE_PARAMETERS = auto()
+    SEND_PARAMETERS = auto()

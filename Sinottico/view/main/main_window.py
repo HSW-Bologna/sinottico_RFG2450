@@ -271,8 +271,7 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                      y)), window[Id.TEMP].Update("Temperatura: {}".format(
                          z)), window[Id.SWR].Update("VSWR: {}".format(
                              calculateVSWR(float(y), float(x))))),
-                error=lambda: window[Id.STATUS].Update(
-                    "Errore di comunicazione!"),
+                error=lambda msg: window[Id.STATUS].update(msg),
                 error_arduino=lambda: window[Id.CONNECT_STATUS2].Update(
                     "Errore di comunicazione!"),
                 attenuation=lambda x:

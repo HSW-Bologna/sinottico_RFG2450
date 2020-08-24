@@ -5,14 +5,14 @@ from .elements import Id
 
 tab: List[List[sg.Element]] = [
     [
-        sg.Input("", size=(48, 1), key=Id.TEMPLATE),
+        sg.Input("", disabled=True, size=(48, 1), key=Id.TEMPLATE),
         sg.FileBrowse("Template",
                       file_types=(('Excel files', "*.xlsx"), ),
                       size=(16, 1),
                       key=Id.TEMPBTN),
     ],
     [
-        sg.Input("", size=(48, 1), key=Id.DESTINATION),
+        sg.Input("", disabled=True, size=(48, 1), key=Id.DESTINATION),
         sg.FolderBrowse("Destinazione", size=(16, 1), key=Id.DESTBTN),
     ],
     [

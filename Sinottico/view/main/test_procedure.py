@@ -17,7 +17,7 @@ TMARGIN = 50
 ATTENUATION = 2
 
 
-def saveData(wb, data, destination, serial, ver):
+def saveData(wb : CustomExcelWorkbookBecauseWindowsSucks, data, destination, serial, ver):
     wb['C3'] = serial
     wb['C4'] = datetime.date.today().strftime("%d/%m/%Y")
     wb['C5'] = datetime.datetime.now().strftime("%I:%M:%S %p")

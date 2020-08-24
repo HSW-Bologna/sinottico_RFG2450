@@ -8,10 +8,15 @@ import queue
 import math
 
 from ..model import *
+from ..utils.excelabstraction import *
 
 
-def combinazioni() -> List[Tuple[int, int, int, int]]:
-    return [*itertools.product(range(5, 40, 5), range(20, 105, 5), range(5, 50, 5), range(100, 2550, 50))]
+def combinazioni_diretta() -> List[Tuple[int, int, int, int]]:
+    return [*itertools.product(range(10, 35, 5), range(50, 310, 10), range(0, 28, 2), range(1000, 5000, 100))]
+
+
+def combinazioni_riflessa() -> List[Tuple[int, int, int, int]]:
+    return [*itertools.product(range(4, 22, 2), range(50, 350, 10), range(4, 20, 2), range(500, 3500, 50))]
 
 
 def calcolo_potenza(adcf: int, adct: int, a: int, b: int, c: int, d: int) -> float:
@@ -67,11 +72,19 @@ def calcolo_errore_riflessa(pardiretta: Tuple[int, int, int, int], parametri: Tu
     return SimpleNamespace(a=a, b=b, c=c, d=d, err=err)
 
 
-def reflex_combinations_task(pardiretta: Tuple[int, int, int, int], data: DatiPotenza, guiq: queue.Queue):
+def reflex_combinations_task(pardiretta: Tuple[int, int, int, int], sheet: str, guiq: queue.Queue):
+    try:
+        workbook = CustomExcelWorkbookBecauseWindowsSucks(sheet)
+        data = workbook.read_data()
+    except (FileNotFoundError, ValueError):
+        guiq.put(GuiMessage.DIRECT_COMBINATIONS_FOUND([]))
+        guiq.put(GuiMessage.ERROR("Documento di calcolo non valido!"))
+        return
+
     cores = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(processes=cores)
 
-    parametri = combinazioni()
+    parametri = combinazioni_riflessa()
     res = pool.starmap(calcolo_errore_riflessa,
                        ((pardiretta, x, data,) for x in parametri))
 
@@ -87,11 +100,19 @@ def reflex_combinations_task(pardiretta: Tuple[int, int, int, int], data: DatiPo
     guiq.put(GuiMessage.REFLEX_COMBINATIONS_FOUND(res))
 
 
-def direct_combinations_task(data: DatiPotenza, guiq: queue.Queue):
+def direct_combinations_task(sheet: str, guiq: queue.Queue):
+    try:
+        workbook = CustomExcelWorkbookBecauseWindowsSucks(sheet)
+        data = workbook.read_data()
+    except (FileNotFoundError, ValueError):
+        guiq.put(GuiMessage.DIRECT_COMBINATIONS_FOUND([]))
+        guiq.put(GuiMessage.ERROR("Documento di calcolo non valido!"))
+        return
+
     cores = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(processes=cores)
 
-    parametri = combinazioni()
+    parametri = combinazioni_diretta()
 
     res = pool.starmap(calcolo_errore_diretta, ((x, data,) for x in parametri))
 
@@ -107,14 +128,24 @@ def direct_combinations_task(data: DatiPotenza, guiq: queue.Queue):
     guiq.put(GuiMessage.DIRECT_COMBINATIONS_FOUND(res))
 
 
-def launch_find_best_combinations_direct(data: DatiPotenza, guiq: queue.Queue):
-    t = threading.Thread(target=direct_combinations_task, args=(data, guiq))
+def launch_find_best_combinations_direct(sheet: str, guiq: queue.Queue):
+    t = threading.Thread(target=direct_combinations_task, args=(sheet, guiq))
     t.daemon = True
     t.start()
 
 
-def launch_find_best_combinations_reflex(pardiretta: Tuple[int, int, int, int], data: DatiPotenza, guiq: queue.Queue):
+def launch_find_best_combinations_reflex(pardiretta: Tuple[int, int, int, int], sheet: str, guiq: queue.Queue):
     t = threading.Thread(target=reflex_combinations_task,
-                         args=(pardiretta, data, guiq))
+                         args=(pardiretta, sheet, guiq))
     t.daemon = True
     t.start()
+
+
+def save_parameters(sheet: str, dest: str, pardiretta: Tuple[int, int, int, int], parriflessa: Tuple[int, int, int, int], guiq: queue.Queue):
+    try:
+        workbook = CustomExcelWorkbookBecauseWindowsSucks(sheet)
+        workbook.write_parametri(pardiretta, parriflessa)
+        workbook.save(dest)
+    except (FileNotFoundError, ValueError):
+        guiq.put(GuiMessage.ERROR("Documento di calcolo non valido!"))
+        return

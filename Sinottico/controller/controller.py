@@ -14,7 +14,7 @@ from ..utils.serialutils import *
 from ..resources import resourcePath
 from ..model import *
 from .commands import *
-from .power import launch_find_best_combinations_direct, launch_find_best_combinations_reflex
+from .power import launch_find_best_combinations_direct, launch_find_best_combinations_reflex, save_parameters
 
 
 @dataclass
@@ -73,14 +73,15 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                                 GuiMessage.RECV(read.decode(errors='ignore')))
 
                         if cmd.error():
-                            guiq.put(GuiMessage.ERROR())
+                            guiq.put(GuiMessage.ERROR(
+                                "Errore di comunicazione"))
                         elif res := cmd.result():
                             guiq.put(res)
                             return
                         else:
                             return
                     else:
-                        guiq.put(GuiMessage.ERROR())
+                        guiq.put(GuiMessage.ERROR("Errore di comunicazione"))
 
                     count += 1
                 return
@@ -121,9 +122,8 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
 
                 cmdq.put(CmdGetMode())
 
-            def getLog():
-                nonlocal model
-                model.cmdq.put(CmdGetLog())
+            def get_log(m):
+                m.cmdq.put(CmdGetLog())
 
             def handshake(cmdq):
                 cmdq.put(CmdSetMode(2))
@@ -145,7 +145,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 getatt=lambda: model.cmdq.put(CmdGetAttenuation()),
                 output=lambda x: model.cmdq.put(CmdSetOutput(x)),
                 getoutput=lambda: model.cmdq.put(CmdGetOutput()),
-                log=getLog,
+                log=lambda: get_log(model),
                 setfreq=lambda x: model.cmdq.put(
                     CmdSetFrequency(x, hidden=False)),
                 handshake=lambda: handshake(model.cmdq),
@@ -153,7 +153,9 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 find_direct_combinations=lambda x: launch_find_best_combinations_direct(
                     x, guiq),
                 find_reflex_combinations=lambda pars, x: launch_find_best_combinations_reflex(pars,
-                    x, guiq),
+                                                                                              x, guiq),
+                save_parameters=lambda src, dst, par1, par2: save_parameters(
+                    src, dst, par1, par2, guiq),
             )
         except queue.Empty:
             pass

@@ -56,8 +56,10 @@ class WorkMessage:
     LOG: Case
     SETFREQ: Case[int]
     HANDSHAKE: Case
-    FIND_DIRECT_COMBINATIONS: Case[DatiPotenza]
-    FIND_REFLEX_COMBINATIONS: Case[Tuple[int, int, int, int], DatiPotenza]
+    FIND_DIRECT_COMBINATIONS: Case[str]
+    FIND_REFLEX_COMBINATIONS: Case[Tuple[int, int, int, int], str]
+    SAVE_PARAMETERS: Case[str, str, Tuple[int, int,
+                                          int, int], Tuple[int, int, int, int]]
 
 
 @adt
@@ -73,7 +75,7 @@ class GuiMessage:
     SERIAL: Case[str]
     REVISION: Case[str]
     POWER: Case[int, int, int]
-    ERROR: Case
+    ERROR: Case[str]
     ERROR_ARDUINO: Case
     CONNECTED_RFG: Case
     CONNECTED_ARDUINO: Case
