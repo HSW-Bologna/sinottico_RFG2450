@@ -290,3 +290,19 @@ class CmdAny(Command):
 
     def result(self):
         return None
+
+
+class CmdNoReturn(Command):
+    def __init__(self, cmd, hidden=False):
+        super().__init__(hidden)
+        self.cmd = cmd
+
+    def commandString(self) -> str:
+        return self.cmd + self._ending
+
+    def parseResponse(self, response: str) -> bool:
+        return response == 'Ok' + self._ending
+
+    def result(self):
+        return None
+

@@ -94,7 +94,7 @@ def manage(m: SimpleNamespace, event: Id, value: str, w: sg.Window) -> bool:
         except ValueError:
             disabled = True
             break
-    w[Id.SAVE_PARAMETERS].update(disabled=disabled)
+    w[Id.SAVE_PARAMETERS].Update(disabled=(len(w[Id.DESTDATA].get()) == 0) or disabled)
     w[Id.SEND_PARAMETERS].update(disabled=disabled)
 
     if m.calculating:
@@ -139,6 +139,9 @@ def manage(m: SimpleNamespace, event: Id, value: str, w: sg.Window) -> bool:
             w[Id.DESTDATA].get(), os.path.basename(filename))
         m.workq.put(WorkMessage.SAVE_PARAMETERS(filename, destination, get_parameters(
             w, Id.PAR_DIR_A, Id.PAR_DIR_B, Id.PAR_DIR_C, Id.PAR_DIR_D), get_parameters(w, Id.PAR_RIF_A, Id.PAR_RIF_B, Id.PAR_RIF_C, Id.PAR_RIF_D)))
+    elif event == Id.SEND_PARAMETERS:
+        m.workq.put(WorkMessage.SEND_PARAMETERS(get_parameters(w, Id.PAR_DIR_A, Id.PAR_DIR_B, Id.PAR_DIR_C, Id.PAR_DIR_D), 
+            get_parameters(w, Id.PAR_RIF_A, Id.PAR_RIF_B, Id.PAR_RIF_C, Id.PAR_RIF_D)))
     else:
         return False
     return True

@@ -3,10 +3,6 @@ import threading
 import sys
 from io import TextIOBase
 
-from .view.main.main_window import main_window
-from .controller.controller import controllerTask
-from .controller.arduino import controller_arduino_task
-
 
 class LazyWriter(TextIOBase):
     def __init__(self, filepath):
@@ -21,6 +17,10 @@ class LazyWriter(TextIOBase):
 
 
 def main():
+    from .view.main.main_window import main_window
+    from .controller.controller import controllerTask
+    from .controller.arduino import controller_arduino_task
+    
     sys.stderr = LazyWriter("trace.txt")
 
     workq: queue.Queue = Queue()

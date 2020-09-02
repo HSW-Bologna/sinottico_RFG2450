@@ -57,7 +57,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                         if not cmd.hidden:
                             guiq.put(GuiMessage.SEND(tosend.decode()))
                         port.write(tosend)
-                        time.sleep(0.02)  # aspetta una risposta
+                        time.sleep(0.05)  # aspetta una risposta
                         # read = port.read_until(cmd.end_bytes()) # alcuni comandi prevedono due righe di risposta
                         read = port.read(port.in_waiting)
                     except serial.SerialException as e:
@@ -73,6 +73,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                                 GuiMessage.RECV(read.decode(errors='ignore')))
 
                         if cmd.error():
+                            print(read)
                             guiq.put(GuiMessage.ERROR(
                                 "Errore di comunicazione"))
                         elif res := cmd.result():
@@ -136,6 +137,11 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                 cmdq.put(CmdGetSerialNumber())
                 cmdq.put(CmdGetRevision())
 
+            def send_pars(cmdq : queue.Queue, t1 : Tuple[int,int,int,int], t2 : Tuple[int,int,int,int]):
+                cmdq.put(CmdNoReturn('assistenza_rm_italy', hidden=True))
+                cmdq.put(CmdNoReturn('Set_FWD,{},{},{},{}'.format(t1[0], t1[1], t1[2], t1[3]), hidden=True))
+                cmdq.put(CmdNoReturn('Set_REF,{},{},{},{}'.format(t2[0], t2[1], t2[2], t2[3]), hidden=True))
+
             msg.match(
                 newport=newPort,
                 send=lambda x: model.cmdq.put(CmdAny(x)),
@@ -156,6 +162,7 @@ def controllerTask(guiq: queue.Queue, workq: queue.Queue):
                                                                                               x, guiq),
                 save_parameters=lambda src, dst, par1, par2: save_parameters(
                     src, dst, par1, par2, guiq),
+                send_parameters=lambda par1, par2: send_pars(model.cmdq, par1, par2),
             )
         except queue.Empty:
             pass

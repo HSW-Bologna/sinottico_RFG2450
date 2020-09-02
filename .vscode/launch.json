@@ -10,7 +10,8 @@
       "request": "launch",
       "program": "${workspaceFolder}/main.py",
       "console": "internalConsole",
-      "pythonPath": "${workspaceFolder}/.env/bin/python"
+      //"pythonPath": "${workspaceFolder}/.env/bin/python"
+      "pythonPath": "python"
     }
   ]
 }

@@ -4,7 +4,7 @@ import serial
 from ..model import *
 
 from typing import List
-import termios
+import os
 
 
 def serialPorts(avoid : List[str]=[]) -> List[str]:
@@ -20,13 +20,23 @@ def serialPorts(avoid : List[str]=[]) -> List[str]:
 
     result = []
     for port in ports:
-        try:
-            if not port in avoid:
-                s = serial.Serial(port)
-                s.close()
-                result.append(port)
-        except (OSError, serial.SerialException, termios.error):
-            pass
+        if os.name == 'nt':
+            try:    
+                if not port in avoid:
+                    s = serial.Serial(port)
+                    s.close()
+                    result.append(port)
+            except (OSError, serial.SerialException):
+                pass
+        else:
+            import termios
+            try:    
+                if not port in avoid:
+                    s = serial.Serial(port)
+                    s.close()
+                    result.append(port)
+            except (OSError, serial.SerialException, termios.error):
+                pass
     return result
 
 

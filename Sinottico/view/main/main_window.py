@@ -127,11 +127,14 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                     size=(64, 1))
     ]]
 
-    # Create the Window
-    window = sg.Window('Collaudo RFG2450',
-                       layout,
-                       finalize=True,
-                       return_keyboard_events=True)
+    try:
+        # Create the Window
+        window = sg.Window('Collaudo RFG2450',
+                        layout,
+                        finalize=True,
+                        return_keyboard_events=True)
+    except RuntimeError:
+        exit(0)
 
     config = SerialConfig()
     config_arduino = SerialConfig(end="LF")

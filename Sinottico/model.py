@@ -60,6 +60,7 @@ class WorkMessage:
     FIND_REFLEX_COMBINATIONS: Case[Tuple[int, int, int, int], str]
     SAVE_PARAMETERS: Case[str, str, Tuple[int, int,
                                           int, int], Tuple[int, int, int, int]]
+    SEND_PARAMETERS: Case[Tuple[int, int, int, int], Tuple[int, int, int, int]]
 
 
 @adt
