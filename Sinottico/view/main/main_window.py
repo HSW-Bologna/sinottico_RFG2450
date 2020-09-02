@@ -12,6 +12,7 @@ from ...model import *
 from .elements import Id
 from .test_procedure import automatedTestProcedure
 from . import tab_informazioni, tab_calibrazione, tab_dati, tab_verbale, tab_terminale
+from ...resources import resourcePath
 
 
 def explicit(s):
@@ -38,16 +39,6 @@ def updateWidgets(m, window, c, carduino):
                           and window[Id.DESTINATION].Get() and m.connected))
         for x in [Id.AUTOTEST, Id.RETRYAUTOTEST]
     ]
-
-
-def calculateVSWR(pref, pfwr):
-    import math
-    if pfwr == 0:
-        return None
-    elif 1 - math.sqrt(pref / pfwr) == 0:
-        return None
-    else:
-        return (1 + math.sqrt(pref / pfwr)) / (1 - math.sqrt(pref / pfwr))
 
 
 def startAutomatedTest(m, w, template, destination):
@@ -112,11 +103,11 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
     ],
         [
             sg.TabGroup([[
-                sg.Tab("Informazioni", tab_informazioni.tab, key=Id.TAB1),
-                sg.Tab("Acquisizione Dati", tab_dati.tab, key=Id.TAB2),
-                sg.Tab("Calibrazione", tab_calibrazione.tab(), key=Id.TAB3),
-                sg.Tab("Verbale", tab_verbale.tab(), key=Id.TAB4),
-                sg.Tab("Terminale", tab_terminale.tab, key=Id.TAB5)
+                sg.Tab("Informazioni", tab_informazioni.tab(80), key=Id.TAB1),
+                sg.Tab("Acquisizione Dati", tab_dati.tab(80), key=Id.TAB2),
+                sg.Tab("Calibrazione", tab_calibrazione.tab(80), key=Id.TAB3),
+                sg.Tab("Verbale", tab_verbale.tab(80), key=Id.TAB4),
+                sg.Tab("Terminale", tab_terminale.tab(80), key=Id.TAB5)
             ]],
                 key=Id.MAINTAB,
                 enable_events=True)
@@ -132,6 +123,11 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                        layout,
                        finalize=True,
                        return_keyboard_events=True)
+    for g in [Id.GAUGE_DIR, Id.GAUGE_RIF]:
+        window[g].draw_image(resourcePath('gauge.png'), location=(-80, 80))
+        window[g].draw_circle((0, 0), 5, fill_color='black')
+    tab_informazioni.update_gauge_dir(window, 0)
+    tab_informazioni.update_gauge_rif(window, 0)
 
     config = SerialConfig()
     config_arduino = SerialConfig(end="LF")
@@ -265,12 +261,8 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                 serial=lambda x: window[Id.SN].Update(x),
                 revision=lambda y: window[Id.REVISION].Update(
                     y.replace('\n', '\t')),
-                power=lambda x, y, z:
-                (window[Id.DIRPWR].Update("Potenza diretta: {} W".format(x)),
-                 window[Id.REFPWR].Update("Potenza riflessa: {} W".format(
-                     y)), window[Id.TEMP].Update("Temperatura: {}".format(
-                         z)), window[Id.SWR].Update("VSWR: {}".format(
-                             calculateVSWR(float(y), float(x))))),
+                power=lambda x, y, z: tab_informazioni.update_info(
+                    window, int(x), int(y), z),
                 error=lambda msg: window[Id.STATUS].update(msg),
                 error_arduino=lambda: window[Id.CONNECT_STATUS2].Update(
                     "Errore di comunicazione!"),
@@ -284,8 +276,10 @@ def main_window(workq: Queue, ardq: Queue, guiq: Queue):
                     Id.LOGHOURS].Update("Ore di lavoro: {}".format(y), window[
                         Id.LOGLOG].update(z))),
                 mode=lambda x: setMode(m, x),
-                direct_combinations_found=lambda res : tab_calibrazione.direct_calculation_end(res, m, window),
-                reflex_combinations_found=lambda res : tab_calibrazione.reflex_calculation_end(res, m, window),
+                direct_combinations_found=lambda res: tab_calibrazione.direct_calculation_end(
+                    res, m, window),
+                reflex_combinations_found=lambda res: tab_calibrazione.reflex_calculation_end(
+                    res, m, window),
                 reconnected=lambda: reconnected(m, window, window[
                     Id.TEMPLATE].Get(), window[Id.DESTINATION].Get()))
 

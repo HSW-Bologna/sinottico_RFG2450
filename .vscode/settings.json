@@ -1,6 +1,7 @@
 {
-    "python.pythonPath": ".env/bin/python",
-    "python.formatting.provider": "autopep8",
-    "python.terminal.activateEnvInCurrentTerminal": true,
-    "python.terminal.activateEnvironment": true
+  "python.pythonPath": ".env/bin/python",
+  "python.linting.mypyEnabled": true,
+  "python.formatting.provider": "autopep8",
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.terminal.activateEnvironment": true
 }
