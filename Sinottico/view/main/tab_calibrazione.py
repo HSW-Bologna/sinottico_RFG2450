@@ -29,20 +29,25 @@ def set_parameters(w: sg.Window, id1: Id, id2: Id, id3: Id, id4: Id, pars: Tuple
     w[id4].update(pars[3])
 
 
-def list_column(id1: Id, id2: Id, id3: Id, idpar: Tuple[Id, Id, Id, Id]):
+def list_column(title: str, id1: Id, id2: Id, id3: Id, idpar: Tuple[Id, Id, Id, Id]):
     return sg.Column([
+        [sg.Text(title)],
+        [sg.Sizer(0, 10)],
         [sg.Button("Elabora", key=id1),
             sg.Image(resourcePath("loading.gif"), key=id2)],
-        [sg.Listbox(values=[], key=id3, size=(32, 5),
+        [sg.Listbox(values=[], key=id3, size=(34, 10),
                     enable_events=True, bind_return_key=True)],
-        [sg.Input(size=(6, 1), key=x, enable_events=True) for x in idpar]
-    ])
+        [sg.Input(size=(7, 1), key=x, enable_events=True, pad=(6, 0))
+         for x in idpar]
+    ],
+        pad=(0, 0)
+    )
 
 
-def tab(**kwargs) -> List[List[sg.Element]]:
+def tab(width: int) -> List[List[sg.Element]]:
     return [
         [
-            sg.Input("", disabled=True, size=(48, 1),
+            sg.Input("", disabled=True, size=(width - 18, 1),
                      key=Id.LOADDATA, enable_events=True),
             sg.FileBrowse("File",
                           file_types=(('Excel files', "*.xlsx"), ),
@@ -50,20 +55,31 @@ def tab(**kwargs) -> List[List[sg.Element]]:
         ],
 
         [
-            sg.Input("", disabled=True, size=(48, 1),
+            sg.Input("", disabled=True, size=(width - 18, 1),
                      key=Id.DESTDATA, enable_events=True),
             sg.FolderBrowse("Destinazione", size=(16, 1)),
         ],
+        [sg.Sizer(0, 32)],
         [
-            list_column(Id.ELABORA_DIRETTA, Id.STATUS_CALCOLO, Id.LIST_DIRETTA,
+            list_column("Parametri Diretta", Id.ELABORA_DIRETTA, Id.STATUS_CALCOLO, Id.LIST_DIRETTA,
                         (Id.PAR_DIR_A, Id.PAR_DIR_B, Id.PAR_DIR_C, Id.PAR_DIR_D)),
-            list_column(Id.ELABORA_RIFLESSA,
+            sg.Column([
+                [sg.Sizer(0, 45)],
+                [sg.Image(resourcePath('road.png'))],
+            ],
+                pad=(0, 0)
+            ),
+            list_column("Parametri Riflessa", Id.ELABORA_RIFLESSA,
                         Id.STATUS_CALCOLO_RIFLESSA, Id.LIST_RIFLESSA,
                         (Id.PAR_RIF_A, Id.PAR_RIF_B, Id.PAR_RIF_C, Id.PAR_RIF_D))
         ],
+        [sg.Sizer(0, 50)],
         [
-            sg.Button("Salva", key=Id.SAVE_PARAMETERS),
-            sg.Button("Invia", key=Id.SEND_PARAMETERS)
+            sg.Sizer(180, 0),
+            sg.Button("Salva", key=Id.SAVE_PARAMETERS,
+                      size=(10, 2), pad=(20, 0)),
+            sg.Button("Invia", key=Id.SEND_PARAMETERS,
+                      size=(10, 2), pad=(20, 0))
         ]
     ]
 

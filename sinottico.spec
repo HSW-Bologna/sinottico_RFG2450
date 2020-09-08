@@ -10,6 +10,8 @@ a = Analysis(['main.py'],
              datas=[
                  (join(join('Sinottico', 'assets'), 'send.png'), '.'),
                  (join(join('Sinottico', 'assets'), 'loading.gif'), '.'),
+		 (join(join('Sinottico', 'assets'), 'road.png'), '.'),
+		 (join(join('Sinottico', 'assets'), 'gauge.png'), '.'),
              ],
              hiddenimports=['openpyxl'],
              hookspath=[],

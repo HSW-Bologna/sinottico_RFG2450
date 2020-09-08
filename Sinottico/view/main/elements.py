@@ -68,3 +68,7 @@ class Id(Enum):
     PAR_RIF_D = auto()
     SAVE_PARAMETERS = auto()
     SEND_PARAMETERS = auto()
+    GAUGE_DIR = auto()
+    GAUGE_RIF = auto()
+    GAUGE_VEL = auto()
+    GAUGE_VSVR = auto()

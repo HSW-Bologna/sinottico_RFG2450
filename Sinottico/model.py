@@ -75,7 +75,7 @@ class GuiMessage:
     RECV: Case[str]
     SERIAL: Case[str]
     REVISION: Case[str]
-    POWER: Case[int, int, int]
+    POWER: Case[int, int, str]
     ERROR: Case[str]
     ERROR_ARDUINO: Case
     CONNECTED_RFG: Case
